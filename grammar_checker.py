@@ -1,13 +1,25 @@
 import re
 from typing import Dict, List, Any, Tuple
+from database import CustomGrammarRule
 
 class GrammarChecker:
-    def __init__(self, rules: Dict):
+    def __init__(self, rules: Dict, db=None):
         self.rules = rules
         self.particle_patterns = rules['particles']
         self.verb_patterns = rules['verbs']
         self.grammar_patterns = rules['common_patterns']
         self.conditional_patterns = rules.get('conditional_patterns', [])
+        self.db = db
+        self.custom_rules = []
+        if db:
+            self.load_custom_rules()
+
+    def load_custom_rules(self):
+        """
+        Load custom grammar rules from the database
+        """
+        if self.db:
+            self.custom_rules = CustomGrammarRule.get_active_rules(self.db)
 
     def check_grammar(self, text: str) -> Dict[str, List[Dict[str, str]]]:
         """
@@ -17,7 +29,8 @@ class GrammarChecker:
             'grammar_issues': [],
             'particle_usage': [],
             'verb_conjugations': [],
-            'advanced_patterns': []
+            'advanced_patterns': [],
+            'custom_patterns': []
         }
 
         # Check particles
@@ -32,7 +45,41 @@ class GrammarChecker:
         # Check conditional patterns
         self._check_conditional_patterns(text, results)
 
+        # Check custom patterns
+        self._check_custom_patterns(text, results)
+
         return results
+
+    def _check_custom_patterns(self, text: str, results: Dict[str, List[Dict[str, str]]]):
+        """
+        Check custom grammar patterns
+        """
+        for rule in self.custom_rules:
+            matches = list(re.finditer(rule.check_pattern, text))
+            for match in matches:
+                context = self._get_context(text, match)
+                context_valid = True
+
+                if rule.context_rules:
+                    context_valid = self._validate_context_rules(
+                        text, match, rule.context_rules
+                    )
+
+                if not context_valid or not re.search(rule.correct_pattern, text):
+                    results['grammar_issues'].append({
+                        'pattern': rule.pattern,
+                        'description': rule.error_description,
+                        'suggestion': rule.suggestion,
+                        'example': rule.example,
+                        'context': context,
+                        'custom_rule': True
+                    })
+                else:
+                    results['custom_patterns'].append({
+                        'pattern': rule.pattern,
+                        'usage': rule.explanation,
+                        'context': context
+                    })
 
     def _check_particles(self, text: str, results: Dict[str, List[Dict[str, str]]]):
         """

@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -39,6 +39,48 @@ class GrammarCheck(Base):
     @classmethod
     def get_recent_checks(cls, db, limit=10):
         return db.query(cls).order_by(cls.created_at.desc()).limit(limit).all()
+
+class CustomGrammarRule(Base):
+    __tablename__ = "custom_grammar_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    pattern = Column(String(255), nullable=False)
+    check_pattern = Column(String(255), nullable=False)
+    correct_pattern = Column(String(255), nullable=False)
+    explanation = Column(Text, nullable=False)
+    example = Column(Text, nullable=False)
+    error_description = Column(Text, nullable=False)
+    suggestion = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    context_rules = Column(JSON, default=list)
+
+    @classmethod
+    def create(cls, db, rule_data):
+        custom_rule = cls(**rule_data)
+        db.add(custom_rule)
+        db.commit()
+        db.refresh(custom_rule)
+        return custom_rule
+
+    @classmethod
+    def get_active_rules(cls, db):
+        return db.query(cls).filter(cls.is_active == True).all()
+
+    @classmethod
+    def update_rule(cls, db, rule_id, rule_data):
+        db.query(cls).filter(cls.id == rule_id).update(rule_data)
+        db.commit()
+        return db.query(cls).filter(cls.id == rule_id).first()
+
+    @classmethod
+    def delete_rule(cls, db, rule_id):
+        rule = db.query(cls).filter(cls.id == rule_id).first()
+        if rule:
+            rule.is_active = False
+            db.commit()
+        return rule
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
