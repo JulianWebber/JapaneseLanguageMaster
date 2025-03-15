@@ -1,0 +1,62 @@
+{
+    "particles": [
+        {
+            "particle": "は",
+            "pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f\\u30a0-\\u30ff]は",
+            "usage": "Topic marker",
+            "explanation": "Used to mark the topic of the sentence"
+        },
+        {
+            "particle": "が",
+            "pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f\\u30a0-\\u30ff]が",
+            "usage": "Subject marker",
+            "explanation": "Used to mark the subject of the sentence"
+        },
+        {
+            "particle": "を",
+            "pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f\\u30a0-\\u30ff]を",
+            "usage": "Object marker",
+            "explanation": "Used to mark the direct object"
+        }
+    ],
+    "verbs": [
+        {
+            "base_form": "ます",
+            "pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f]ます",
+            "conjugation": "Polite present",
+            "form": "Positive"
+        },
+        {
+            "base_form": "ません",
+            "pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f]ません",
+            "conjugation": "Polite present",
+            "form": "Negative"
+        },
+        {
+            "base_form": "た",
+            "pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f]た",
+            "conjugation": "Past",
+            "form": "Plain positive"
+        }
+    ],
+    "common_patterns": [
+        {
+            "pattern": "～てください",
+            "check_pattern": "て[くだ|下だ]さい",
+            "correct_pattern": "てください",
+            "explanation": "Polite request form",
+            "example": "見てください (Please look)",
+            "error_description": "Incorrect formation of てください",
+            "suggestion": "Use てください for polite requests"
+        },
+        {
+            "pattern": "～ている",
+            "check_pattern": "て[いる|居る]",
+            "correct_pattern": "ている",
+            "explanation": "Continuous or state of being",
+            "example": "食べている (Is eating)",
+            "error_description": "Incorrect formation of ている",
+            "suggestion": "Use ている for ongoing actions"
+        }
+    ]
+}
