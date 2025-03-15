@@ -2,8 +2,9 @@ import streamlit as st
 import json
 from grammar_checker import GrammarChecker
 from utils import load_grammar_rules, analyze_text
-from database import get_db, GrammarCheck, CustomGrammarRule
+from database import get_db, GrammarCheck, CustomGrammarRule, UserProgress
 from contextlib import contextmanager
+import uuid
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -19,6 +20,10 @@ def get_database():
     finally:
         db.close()
 
+# Initialize session state for user tracking
+if 'session_id' not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
 # Initialize the checker with database connection
 with get_database() as db:
     checker = GrammarChecker(grammar_rules, db)
@@ -26,7 +31,7 @@ with get_database() as db:
 st.title("Japanese Grammar Checker")
 
 # Sidebar navigation
-page = st.sidebar.radio("Navigation", ["Grammar Check", "Custom Rules"])
+page = st.sidebar.radio("Navigation", ["Grammar Check", "Progress Dashboard", "Custom Rules"])
 
 if page == "Grammar Check":
     # Main input section
@@ -37,11 +42,22 @@ if page == "Grammar Check":
         # Analysis section
         st.subheader("Grammar Analysis")
 
-        # Perform grammar check
+        # Perform grammar check and update progress
         with get_database() as db:
             checker.load_custom_rules()  # Refresh custom rules
             analysis_results = checker.check_grammar(input_text)
-            GrammarCheck.create(db, input_text, analysis_results)
+
+            # Get or create user progress
+            user_progress = UserProgress.get_or_create(db, st.session_state.session_id)
+
+            # Create grammar check linked to user progress
+            check = GrammarCheck.create(db, input_text, analysis_results)
+            check.user_progress_id = user_progress.id
+
+            # Update user progress
+            user_progress.update_progress(db, analysis_results)
+
+            db.commit()
 
         # Display results in tabs
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -104,6 +120,64 @@ if page == "Grammar Check":
                             st.write(f"**Context:** {verb['context']}")
             else:
                 st.info("No verb conjugations to analyze.")
+
+elif page == "Progress Dashboard":
+    st.subheader("Your Learning Progress")
+
+    with get_database() as db:
+        user_progress = UserProgress.get_or_create(db, st.session_state.session_id)
+
+        # Overall stats
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Checks", user_progress.total_checks)
+        with col2:
+            st.metric("Correct Usage", user_progress.total_correct)
+        with col3:
+            accuracy = f"{user_progress.average_accuracy * 100:.1f}%"
+            st.metric("Average Accuracy", accuracy)
+
+        # Mastery breakdown
+        st.subheader("Mastery Levels")
+
+        # Particle mastery
+        st.write("**Particle Usage Mastery**")
+        if user_progress.particle_mastery:
+            for particle, stats in user_progress.particle_mastery.items():
+                mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
+                st.progress(mastery / 100, text=f"{particle}: {mastery:.1f}%")
+        else:
+            st.info("No particle usage data yet")
+
+        # Verb mastery
+        st.write("**Verb Conjugation Mastery**")
+        if user_progress.verb_mastery:
+            for conjugation, stats in user_progress.verb_mastery.items():
+                mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
+                st.progress(mastery / 100, text=f"{conjugation}: {mastery:.1f}%")
+        else:
+            st.info("No verb conjugation data yet")
+
+        # Pattern mastery
+        st.write("**Grammar Pattern Mastery**")
+        if user_progress.pattern_mastery:
+            for pattern, stats in user_progress.pattern_mastery.items():
+                mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
+                st.progress(mastery / 100, text=f"{pattern}: {mastery:.1f}%")
+        else:
+            st.info("No grammar pattern data yet")
+
+        # Recent activity
+        st.subheader("Recent Activity")
+        recent_checks = GrammarCheck.get_recent_checks(db, limit=5)
+        for check in recent_checks:
+            with st.expander(f"Check {check.created_at.strftime('%Y-%m-%d %H:%M')}"):
+                st.write("**Input Text:**")
+                st.write(check.input_text)
+                st.write("**Results:**")
+                st.write(f"- Issues Found: {len(check.grammar_issues)}")
+                st.write(f"- Particles Used: {len(check.particle_usage)}")
+                st.write(f"- Verbs Analyzed: {len(check.verb_conjugations)}")
 
 elif page == "Custom Rules":
     st.subheader("Custom Grammar Rules")
