@@ -47,7 +47,8 @@
             "explanation": "Polite request form",
             "example": "見てください (Please look)",
             "error_description": "Incorrect formation of てください",
-            "suggestion": "Use てください for polite requests"
+            "suggestion": "Use てください for polite requests",
+            "context_rules": ["must_follow_te_form", "end_of_sentence"]
         },
         {
             "pattern": "～ている",
@@ -56,7 +57,74 @@
             "explanation": "Continuous or state of being",
             "example": "食べている (Is eating)",
             "error_description": "Incorrect formation of ている",
-            "suggestion": "Use ている for ongoing actions"
+            "suggestion": "Use ている for ongoing actions",
+            "context_rules": ["must_follow_te_form"]
+        },
+        {
+            "pattern": "～のに",
+            "check_pattern": "のに",
+            "correct_pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f\\u30a0-\\u30ff]のに",
+            "explanation": "Expression of contradiction",
+            "example": "勉強したのに、試験に落ちた (Despite studying, I failed the exam)",
+            "error_description": "Incorrect usage of のに",
+            "suggestion": "Use のに to express contradiction or unexpected results",
+            "context_rules": ["must_follow_verb_or_adjective", "requires_contrasting_clause"]
+        },
+        {
+            "pattern": "～ばよかった",
+            "check_pattern": "ば[よ|良]かった",
+            "correct_pattern": "[\\u4e00-\\u9fff\\u3040-\\u309f]ばよかった",
+            "explanation": "Expression of regret",
+            "example": "勉強すればよかった (I should have studied)",
+            "error_description": "Incorrect formation of ばよかった",
+            "suggestion": "Use ばよかった to express regret about past actions",
+            "context_rules": ["must_follow_verb_stem", "past_context_required"]
+        },
+        {
+            "pattern": "～てしまう",
+            "check_pattern": "てしまう",
+            "correct_pattern": "てしまう",
+            "explanation": "Completion or regrettable action",
+            "example": "食べてしまった (Ended up eating / Unfortunately ate)",
+            "error_description": "Incorrect usage of てしまう",
+            "suggestion": "Use てしまう to express completion or regret",
+            "context_rules": ["must_follow_te_form", "can_be_past_or_present"]
+        }
+    ],
+    "conditional_patterns": [
+        {
+            "pattern": "～たら",
+            "conditions": {
+                "preceding": ["verb_past_form", "adjective_past_form"],
+                "following": ["main_clause_required"]
+            },
+            "examples": [
+                {
+                    "correct": "雨が降ったら、傘を持って行きます",
+                    "explanation": "If it rains, I will take an umbrella"
+                }
+            ],
+            "error_patterns": [
+                "たら$",
+                "たら[\\u3002\\u3001]"
+            ]
+        },
+        {
+            "pattern": "～なければならない",
+            "conditions": {
+                "preceding": ["verb_stem", "adjective_stem"],
+                "following": ["end_of_sentence", "explanation_required"]
+            },
+            "examples": [
+                {
+                    "correct": "宿題をしなければならない",
+                    "explanation": "Must do homework"
+                }
+            ],
+            "error_patterns": [
+                "なければ$",
+                "なければ[\\u3002\\u3001]"
+            ]
         }
     ]
 }
