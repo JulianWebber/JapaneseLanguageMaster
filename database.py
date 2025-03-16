@@ -56,6 +56,9 @@ class UserProgress(Base):
     average_accuracy = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow)
+    current_streak = Column(Integer, default=0)
+    longest_streak = Column(Integer, default=0)
+    last_check_date = Column(DateTime, default=datetime.utcnow)
 
     grammar_checks = relationship("GrammarCheck", back_populates="user_progress")
 
@@ -84,11 +87,36 @@ class UserProgress(Base):
         self._update_verb_mastery(analysis_results.get('verb_conjugations', []))
         self._update_pattern_mastery(analysis_results.get('advanced_patterns', []))
 
+        # Update streak
+        self._update_streak()
+
         # Update accuracy
         self.average_accuracy = (self.total_correct / self.total_checks) if self.total_checks > 0 else 0.0
         self.last_activity = datetime.utcnow()
 
         db.commit()
+
+    def _update_streak(self):
+        """Update the user's learning streak"""
+        today = datetime.utcnow().date()
+        last_check = self.last_check_date.date() if self.last_check_date else None
+
+        if not last_check:
+            # First check ever
+            self.current_streak = 1
+            self.longest_streak = 1
+        elif last_check == today:
+            # Already checked today, streak remains the same
+            pass
+        elif (today - last_check).days == 1:
+            # Consecutive day, increase streak
+            self.current_streak += 1
+            self.longest_streak = max(self.longest_streak, self.current_streak)
+        else:
+            # Streak broken
+            self.current_streak = 1
+
+        self.last_check_date = datetime.utcnow()
 
     def _update_particle_mastery(self, particles):
         if not self.particle_mastery:

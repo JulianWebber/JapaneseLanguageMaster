@@ -127,7 +127,31 @@ elif page == "Progress Dashboard":
     with get_database() as db:
         user_progress = UserProgress.get_or_create(db, st.session_state.session_id)
 
+        # Streak information
+        st.write("### Learning Streak 🔥")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Current Streak", f"{user_progress.current_streak} days")
+        with col2:
+            st.metric("Longest Streak", f"{user_progress.longest_streak} days")
+
+        # Display streak motivation message
+        if user_progress.current_streak > 0:
+            st.success(f"Keep going! You've been learning for {user_progress.current_streak} consecutive days!")
+
+            # Calculate next milestone
+            next_milestone = ((user_progress.current_streak // 5) + 1) * 5
+            days_to_milestone = next_milestone - user_progress.current_streak
+            if days_to_milestone > 0:
+                st.info(f"🎯 {days_to_milestone} more days until your next milestone! ({next_milestone} days)")
+        else:
+            st.warning("Start your learning streak today! Practice daily to build your streak. 🎯")
+
+        # Last activity
+        st.write(f"Last practice: {user_progress.last_check_date.strftime('%Y-%m-%d')}")
+
         # Overall stats
+        st.write("### Overall Progress")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Checks", user_progress.total_checks)
