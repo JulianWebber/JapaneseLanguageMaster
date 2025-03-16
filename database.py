@@ -59,6 +59,7 @@ class UserProgress(Base):
     current_streak = Column(Integer, default=0)
     longest_streak = Column(Integer, default=0)
     last_check_date = Column(DateTime, default=datetime.utcnow)
+    achievements = Column(JSON, default=dict) # Added achievements column
 
     grammar_checks = relationship("GrammarCheck", back_populates="user_progress")
 
@@ -90,6 +91,9 @@ class UserProgress(Base):
         # Update streak
         self._update_streak()
 
+        # Check and award achievements
+        self._check_achievements()
+
         # Update accuracy
         self.average_accuracy = (self.total_correct / self.total_checks) if self.total_checks > 0 else 0.0
         self.last_activity = datetime.utcnow()
@@ -117,6 +121,58 @@ class UserProgress(Base):
             self.current_streak = 1
 
         self.last_check_date = datetime.utcnow()
+
+    def _check_achievements(self):
+        """Check and award achievements based on user progress"""
+        if not self.achievements:
+            self.achievements = {
+                'streak': [],
+                'accuracy': [],
+                'mastery': [],
+                'practice': []
+            }
+
+        # Streak achievements
+        streak_milestones = [3, 7, 14, 30, 60, 90]
+        for days in streak_milestones:
+            achievement_id = f"streak_{days}"
+            if self.current_streak >= days and achievement_id not in self.achievements['streak']:
+                self.achievements['streak'].append(achievement_id)
+
+        # Accuracy achievements
+        accuracy_milestones = [0.6, 0.7, 0.8, 0.9, 0.95]
+        for accuracy in accuracy_milestones:
+            achievement_id = f"accuracy_{int(accuracy * 100)}"
+            if self.average_accuracy >= accuracy and achievement_id not in self.achievements['accuracy']:
+                self.achievements['accuracy'].append(achievement_id)
+
+        # Practice count achievements
+        practice_milestones = [10, 50, 100, 500, 1000]
+        for count in practice_milestones:
+            achievement_id = f"practice_{count}"
+            if self.total_checks >= count and achievement_id not in self.achievements['practice']:
+                self.achievements['practice'].append(achievement_id)
+
+        # Mastery achievements (for particles and verbs)
+        mastery_categories = [
+            (self.particle_mastery, 'particle'),
+            (self.verb_mastery, 'verb'),
+            (self.pattern_mastery, 'pattern')
+        ]
+
+        for mastery_dict, category in mastery_categories:
+            if mastery_dict:
+                total_mastery = sum(
+                    stats['correct'] / stats['count']
+                    for stats in mastery_dict.values()
+                    if stats['count'] > 0
+                ) / len(mastery_dict)
+
+                mastery_milestones = [0.5, 0.7, 0.9]
+                for mastery in mastery_milestones:
+                    achievement_id = f"{category}_mastery_{int(mastery * 100)}"
+                    if total_mastery >= mastery and achievement_id not in self.achievements['mastery']:
+                        self.achievements['mastery'].append(achievement_id)
 
     def _update_particle_mastery(self, particles):
         if not self.particle_mastery:

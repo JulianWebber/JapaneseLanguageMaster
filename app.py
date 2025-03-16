@@ -191,6 +191,46 @@ elif page == "Progress Dashboard":
         else:
             st.info("No grammar pattern data yet")
 
+        # Achievements section
+        st.subheader("🏆 Achievements")
+
+        if user_progress.achievements:
+            # Streak Achievements
+            st.write("**Streak Achievements**")
+            for achievement in user_progress.achievements.get('streak', []):
+                days = achievement.split('_')[1]
+                st.success(f"🔥 {days}-Day Streak Champion!")
+
+            # Accuracy Achievements
+            st.write("**Accuracy Achievements**")
+            for achievement in user_progress.achievements.get('accuracy', []):
+                accuracy = achievement.split('_')[1]
+                st.success(f"🎯 {accuracy}% Accuracy Master!")
+
+            # Practice Achievements
+            st.write("**Practice Achievements**")
+            for achievement in user_progress.achievements.get('practice', []):
+                count = achievement.split('_')[1]
+                st.success(f"📚 Completed {count} Grammar Checks!")
+
+            # Mastery Achievements
+            st.write("**Mastery Achievements**")
+            for achievement in user_progress.achievements.get('mastery', []):
+                category, _, level = achievement.split('_')
+                icon = "🔤" if category == "particle" else "📝" if category == "verb" else "📖"
+                st.success(f"{icon} {category.title()} Mastery Level {level}%")
+
+            # Calculate total achievements
+            total_achievements = sum(len(achievements) for achievements in user_progress.achievements.values())
+            st.info(f"Total Achievements Earned: {total_achievements}")
+        else:
+            st.info("Start practicing to earn achievements! 🌟")
+            st.write("Available achievements:")
+            st.write("- 🔥 Streak achievements (3, 7, 14, 30, 60, 90 days)")
+            st.write("- 🎯 Accuracy achievements (60%, 70%, 80%, 90%, 95%)")
+            st.write("- 📚 Practice count achievements (10, 50, 100, 500, 1000 checks)")
+            st.write("- 📖 Mastery level achievements (50%, 70%, 90% mastery)")
+
         # Recent activity
         st.subheader("Recent Activity")
         recent_checks = GrammarCheck.get_recent_checks(db, limit=5)
