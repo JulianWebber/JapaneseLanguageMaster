@@ -5,6 +5,11 @@ from utils import load_grammar_rules, analyze_text
 from database import get_db, GrammarCheck, CustomGrammarRule, UserProgress
 from contextlib import contextmanager
 import uuid
+from visualizations import (
+    create_streak_chart,
+    create_mastery_radar,
+    create_achievement_progress
+)
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -127,13 +132,13 @@ elif page == "Progress Dashboard":
     with get_database() as db:
         user_progress = UserProgress.get_or_create(db, st.session_state.session_id)
 
-        # Streak information
+        # Streak information with animated chart
         st.write("### Learning Streak 🔥")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Current Streak", f"{user_progress.current_streak} days")
-        with col2:
-            st.metric("Longest Streak", f"{user_progress.longest_streak} days")
+        streak_chart = create_streak_chart(
+            user_progress.current_streak,
+            user_progress.longest_streak
+        )
+        st.plotly_chart(streak_chart, use_container_width=True)
 
         # Display streak motivation message
         if user_progress.current_streak > 0:
@@ -161,64 +166,78 @@ elif page == "Progress Dashboard":
             accuracy = f"{user_progress.average_accuracy * 100:.1f}%"
             st.metric("Average Accuracy", accuracy)
 
-        # Mastery breakdown
-        st.subheader("Mastery Levels")
+        # Mastery radar chart
+        st.subheader("Mastery Overview")
+        mastery_chart = create_mastery_radar(
+            user_progress.particle_mastery,
+            user_progress.verb_mastery,
+            user_progress.pattern_mastery
+        )
+        st.plotly_chart(mastery_chart, use_container_width=True)
 
-        # Particle mastery
-        st.write("**Particle Usage Mastery**")
-        if user_progress.particle_mastery:
-            for particle, stats in user_progress.particle_mastery.items():
-                mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
-                st.progress(mastery / 100, text=f"{particle}: {mastery:.1f}%")
-        else:
-            st.info("No particle usage data yet")
+        # Detailed mastery breakdown
+        with st.expander("Detailed Mastery Breakdown", expanded=False):
+            # Particle mastery
+            st.write("**Particle Usage Mastery**")
+            if user_progress.particle_mastery:
+                for particle, stats in user_progress.particle_mastery.items():
+                    mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
+                    st.progress(mastery / 100, text=f"{particle}: {mastery:.1f}%")
+            else:
+                st.info("No particle usage data yet")
 
-        # Verb mastery
-        st.write("**Verb Conjugation Mastery**")
-        if user_progress.verb_mastery:
-            for conjugation, stats in user_progress.verb_mastery.items():
-                mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
-                st.progress(mastery / 100, text=f"{conjugation}: {mastery:.1f}%")
-        else:
-            st.info("No verb conjugation data yet")
+            # Verb mastery
+            st.write("**Verb Conjugation Mastery**")
+            if user_progress.verb_mastery:
+                for conjugation, stats in user_progress.verb_mastery.items():
+                    mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
+                    st.progress(mastery / 100, text=f"{conjugation}: {mastery:.1f}%")
+            else:
+                st.info("No verb conjugation data yet")
 
-        # Pattern mastery
-        st.write("**Grammar Pattern Mastery**")
-        if user_progress.pattern_mastery:
-            for pattern, stats in user_progress.pattern_mastery.items():
-                mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
-                st.progress(mastery / 100, text=f"{pattern}: {mastery:.1f}%")
-        else:
-            st.info("No grammar pattern data yet")
+            # Pattern mastery
+            st.write("**Grammar Pattern Mastery**")
+            if user_progress.pattern_mastery:
+                for pattern, stats in user_progress.pattern_mastery.items():
+                    mastery = (stats['correct'] / stats['count']) * 100 if stats['count'] > 0 else 0
+                    st.progress(mastery / 100, text=f"{pattern}: {mastery:.1f}%")
+            else:
+                st.info("No grammar pattern data yet")
 
-        # Achievements section
+        # Achievements section with animated progress
         st.subheader("🏆 Achievements")
 
         if user_progress.achievements:
-            # Streak Achievements
-            st.write("**Streak Achievements**")
-            for achievement in user_progress.achievements.get('streak', []):
-                days = achievement.split('_')[1]
-                st.success(f"🔥 {days}-Day Streak Champion!")
+            # Achievement progress chart
+            achievement_chart = create_achievement_progress(user_progress.achievements)
+            if achievement_chart:
+                st.plotly_chart(achievement_chart, use_container_width=True)
 
-            # Accuracy Achievements
-            st.write("**Accuracy Achievements**")
-            for achievement in user_progress.achievements.get('accuracy', []):
-                accuracy = achievement.split('_')[1]
-                st.success(f"🎯 {accuracy}% Accuracy Master!")
+            with st.expander("Achievement Details", expanded=True):
+                # Streak Achievements
+                st.write("**Streak Achievements**")
+                for achievement in user_progress.achievements.get('streak', []):
+                    days = achievement.split('_')[1]
+                    st.success(f"🔥 {days}-Day Streak Champion!")
 
-            # Practice Achievements
-            st.write("**Practice Achievements**")
-            for achievement in user_progress.achievements.get('practice', []):
-                count = achievement.split('_')[1]
-                st.success(f"📚 Completed {count} Grammar Checks!")
+                # Accuracy Achievements
+                st.write("**Accuracy Achievements**")
+                for achievement in user_progress.achievements.get('accuracy', []):
+                    accuracy = achievement.split('_')[1]
+                    st.success(f"🎯 {accuracy}% Accuracy Master!")
 
-            # Mastery Achievements
-            st.write("**Mastery Achievements**")
-            for achievement in user_progress.achievements.get('mastery', []):
-                category, _, level = achievement.split('_')
-                icon = "🔤" if category == "particle" else "📝" if category == "verb" else "📖"
-                st.success(f"{icon} {category.title()} Mastery Level {level}%")
+                # Practice Achievements
+                st.write("**Practice Achievements**")
+                for achievement in user_progress.achievements.get('practice', []):
+                    count = achievement.split('_')[1]
+                    st.success(f"📚 Completed {count} Grammar Checks!")
+
+                # Mastery Achievements
+                st.write("**Mastery Achievements**")
+                for achievement in user_progress.achievements.get('mastery', []):
+                    category, _, level = achievement.split('_')
+                    icon = "🔤" if category == "particle" else "📝" if category == "verb" else "📖"
+                    st.success(f"{icon} {category.title()} Mastery Level {level}%")
 
             # Calculate total achievements
             total_achievements = sum(len(achievements) for achievements in user_progress.achievements.values())
@@ -230,18 +249,6 @@ elif page == "Progress Dashboard":
             st.write("- 🎯 Accuracy achievements (60%, 70%, 80%, 90%, 95%)")
             st.write("- 📚 Practice count achievements (10, 50, 100, 500, 1000 checks)")
             st.write("- 📖 Mastery level achievements (50%, 70%, 90% mastery)")
-
-        # Recent activity
-        st.subheader("Recent Activity")
-        recent_checks = GrammarCheck.get_recent_checks(db, limit=5)
-        for check in recent_checks:
-            with st.expander(f"Check {check.created_at.strftime('%Y-%m-%d %H:%M')}"):
-                st.write("**Input Text:**")
-                st.write(check.input_text)
-                st.write("**Results:**")
-                st.write(f"- Issues Found: {len(check.grammar_issues)}")
-                st.write(f"- Particles Used: {len(check.particle_usage)}")
-                st.write(f"- Verbs Analyzed: {len(check.verb_conjugations)}")
 
 elif page == "Custom Rules":
     st.subheader("Custom Grammar Rules")
