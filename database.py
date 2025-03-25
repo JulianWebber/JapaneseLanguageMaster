@@ -62,6 +62,7 @@ class UserProgress(Base):
     achievements = Column(JSON, default=dict) # Added achievements column
 
     grammar_checks = relationship("GrammarCheck", back_populates="user_progress")
+    assessments = relationship("LanguageAssessment", backref="user_progress", cascade="all, delete-orphan")
 
     @classmethod
     def get_or_create(cls, db, session_id):
@@ -248,6 +249,44 @@ class CustomGrammarRule(Base):
             rule.is_active = False
             db.commit()
         return rule
+
+class LanguageAssessment(Base):
+    __tablename__ = "language_assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), ForeignKey('user_progress.session_id'), nullable=False)
+    assessment_date = Column(DateTime, default=datetime.utcnow)
+    self_rated_level = Column(String(20))  # beginner, intermediate, advanced
+    grammar_comfort = Column(JSON)  # Comfort levels with different grammar patterns
+    test_results = Column(JSON)  # Results from the quick assessment test
+    recommended_level = Column(String(20))
+    weak_areas = Column(JSON)  # Areas that need more practice
+    strong_areas = Column(JSON)  # Areas of strength
+
+    user_progress = relationship("UserProgress", backref="assessments")
+
+    @classmethod
+    def create(cls, db, session_id, assessment_data):
+        assessment = cls(
+            session_id=session_id,
+            self_rated_level=assessment_data['self_rated_level'],
+            grammar_comfort=assessment_data['grammar_comfort'],
+            test_results=assessment_data['test_results'],
+            recommended_level=assessment_data['recommended_level'],
+            weak_areas=assessment_data['weak_areas'],
+            strong_areas=assessment_data['strong_areas']
+        )
+        db.add(assessment)
+        db.commit()
+        db.refresh(assessment)
+        return assessment
+
+    @classmethod
+    def get_latest_assessment(cls, db, session_id):
+        return db.query(cls).filter(
+            cls.session_id == session_id
+        ).order_by(cls.assessment_date.desc()).first()
+
 
 # Create all tables
 Base.metadata.create_all(bind=engine)

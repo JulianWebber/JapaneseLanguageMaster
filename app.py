@@ -2,7 +2,7 @@ import streamlit as st
 import json
 from grammar_checker import GrammarChecker
 from utils import load_grammar_rules, analyze_text
-from database import get_db, GrammarCheck, CustomGrammarRule, UserProgress
+from database import get_db, GrammarCheck, CustomGrammarRule, UserProgress, LanguageAssessment
 from contextlib import contextmanager
 import uuid
 from visualizations import (
@@ -10,6 +10,7 @@ from visualizations import (
     create_mastery_radar,
     create_achievement_progress
 )
+from assessment import LanguageLevelAssessor
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -36,7 +37,10 @@ with get_database() as db:
 st.title("Japanese Grammar Checker")
 
 # Sidebar navigation
-page = st.sidebar.radio("Navigation", ["Grammar Check", "Progress Dashboard", "Custom Rules"])
+page = st.sidebar.radio(
+    "Navigation",
+    ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment"]
+)
 
 if page == "Grammar Check":
     # Main input section
@@ -310,6 +314,142 @@ elif page == "Custom Rules":
                     CustomGrammarRule.delete_rule(db, rule.id)
                     st.success("Rule deleted successfully!")
                     st.rerun()
+
+elif page == "Self Assessment":
+    st.subheader("Japanese Language Self-Assessment")
+
+    # Initialize assessor
+    assessor = LanguageLevelAssessor()
+
+    # Check if user has a recent assessment
+    with get_database() as db:
+        latest_assessment = LanguageAssessment.get_latest_assessment(
+            db, st.session_state.session_id
+        )
+
+        if latest_assessment:
+            last_assessment_date = latest_assessment.assessment_date.strftime('%Y-%m-%d')
+            st.info(f"Your last assessment was on {last_assessment_date}")
+
+            # Show previous results
+            with st.expander("View Previous Assessment Results"):
+                st.write("**Self-Rated Level:**", latest_assessment.self_rated_level)
+                st.write("**Recommended Level:**", latest_assessment.recommended_level)
+
+                st.write("**Strong Areas:**")
+                for area in latest_assessment.strong_areas:
+                    st.success(f"- {area}")
+
+                st.write("**Areas for Improvement:**")
+                for area in latest_assessment.weak_areas:
+                    st.warning(f"- {area}")
+
+    # Start new assessment button
+    start_new = st.button("Start New Assessment")
+
+    if start_new or not latest_assessment:
+        st.write("### Step 1: Self-Rate Your Level")
+        self_rated_level = st.radio(
+            "How would you rate your current Japanese level?",
+            ["beginner", "intermediate", "advanced"]
+        )
+
+        st.write("### Step 2: Grammar Comfort Assessment")
+        st.write("Rate your comfort level with the following grammar patterns:")
+
+        comfort_ratings = {}
+        for category, patterns in assessor.grammar_categories.items():
+            st.write(f"**{category.title()}**")
+            comfort_ratings[category] = st.slider(
+                f"How comfortable are you with {category}?",
+                0, 5, 2,
+                help=f"Patterns include: {', '.join(patterns)}"
+            )
+
+        st.write("### Step 3: Quick Assessment Test")
+        with st.form("assessment_test"):
+            st.write("Answer these sample questions:")
+
+            test_answers = {}
+            # Sample questions based on user's self-rated level
+            if self_rated_level == "beginner":
+                test_answers['q1'] = st.radio(
+                    "1. Which particle marks the topic of a sentence?",
+                    ["は", "が", "を", "に"]
+                ) == "は"
+                test_answers['q2'] = st.radio(
+                    "2. What is the polite form of 食べる (to eat)?",
+                    ["食べます", "食べられる", "食べている", "食べた"]
+                ) == "食べます"
+            elif self_rated_level == "intermediate":
+                test_answers['q1'] = st.radio(
+                    "1. Which form expresses 'if' condition?",
+                    ["〜たら", "〜ている", "〜ました", "〜ます"]
+                ) == "〜たら"
+                test_answers['q2'] = st.radio(
+                    "2. What is the te-form of 行く?",
+                    ["行って", "行きて", "行った", "行きます"]
+                ) == "行って"
+            else:  # advanced
+                test_answers['q1'] = st.radio(
+                    "1. Which is the humble form of 見る?",
+                    ["拝見する", "ご覧になる", "見られる", "見ます"]
+                ) == "拝見する"
+                test_answers['q2'] = st.radio(
+                    "2. What is the causative-passive form of 食べる?",
+                    ["食べさせられる", "食べられる", "食べさせる", "食べている"]
+                ) == "食べさせられる"
+
+            submitted = st.form_submit_button("Submit Assessment")
+
+            if submitted:
+                # Calculate results
+                comfort_level = assessor.calculate_comfort_level(comfort_ratings)
+                strong_areas, weak_areas = assessor.analyze_strengths_weaknesses(comfort_ratings)
+                test_results = assessor.evaluate_test_results(test_answers)
+                recommendations = assessor.get_recommended_materials(comfort_level, weak_areas)
+
+                # Store assessment results
+                assessment_data = {
+                    'self_rated_level': self_rated_level,
+                    'grammar_comfort': comfort_ratings,
+                    'test_results': test_results,
+                    'recommended_level': test_results['mastery_level'],
+                    'weak_areas': weak_areas,
+                    'strong_areas': strong_areas
+                }
+
+                with get_database() as db:
+                    LanguageAssessment.create(db, st.session_state.session_id, assessment_data)
+
+                # Display results
+                st.success("Assessment Complete!")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("**Your Results**")
+                    st.write(f"Self-Rated Level: {self_rated_level}")
+                    st.write(f"Test Score: {test_results['score']}%")
+                    st.write(f"Recommended Level: {test_results['mastery_level']}")
+
+                with col2:
+                    st.write("**Recommendations**")
+                    for point in recommendations['grammar_points']:
+                        st.info(point)
+
+                st.write("**Strong Areas:**")
+                for area in strong_areas:
+                    st.success(f"- {area}")
+
+                st.write("**Areas for Improvement:**")
+                for area in weak_areas:
+                    st.warning(f"- {area}")
+
+                if recommendations['practice_areas']:
+                    st.write("**Suggested Practice:**")
+                    for practice in recommendations['practice_areas']:
+                        st.info(practice)
+
 
 # Recent checks section in sidebar
 st.sidebar.title("Recent Checks")
