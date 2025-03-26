@@ -11,10 +11,57 @@ from visualizations import (
     create_achievement_progress
 )
 from assessment import LanguageLevelAssessor
-from idiom_translator import IdiomTranslator # Added import
+from idiom_translator import IdiomTranslator
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
+
+# Add custom CSS for animations
+st.markdown("""
+<style>
+    /* Animation keyframes */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Apply animations to main content */
+    .stApp > header,
+    .main > div,
+    .element-container,
+    .stMarkdown,
+    .stButton,
+    .stTextInput,
+    .stTextArea {
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    /* Smooth transitions for interactive elements */
+    .stSelectbox,
+    .stMultiSelect,
+    .stSlider {
+        transition: all 0.3s ease;
+    }
+
+    /* Hover effects */
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        transition: transform 0.3s ease;
+    }
+
+    /* Sidebar transitions */
+    .sidebar .sidebar-content {
+        transition: margin 0.3s ease-in-out;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state for transitions
+if 'previous_page' not in st.session_state:
+    st.session_state.previous_page = None
+
+if 'session_id' not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
 # Load grammar rules
 grammar_rules = load_grammar_rules()
@@ -27,10 +74,6 @@ def get_database():
     finally:
         db.close()
 
-# Initialize session state for user tracking
-if 'session_id' not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
-
 # Initialize the checker with database connection
 with get_database() as db:
     checker = GrammarChecker(grammar_rules, db)
@@ -38,7 +81,7 @@ with get_database() as db:
 st.title("Japanese Grammar Checker")
 
 # Sidebar navigation
-page = st.sidebar.radio( # Updated navigation
+page = st.sidebar.radio(
     "Navigation",
     ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator"]
 )
@@ -452,7 +495,7 @@ elif page == "Self Assessment":
                         st.info(practice)
 
 
-elif page == "Idiom Translator": # New Idiom Translator page
+elif page == "Idiom Translator":
     st.subheader("Japanese Idiom Translator")
 
     with get_database() as db:
