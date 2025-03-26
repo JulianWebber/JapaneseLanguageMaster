@@ -159,7 +159,7 @@ st.title("Japanese Grammar Checker")
 # Sidebar navigation
 page = st.sidebar.radio(
     "Navigation",
-    ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator"]
+    ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator", "Pronunciation Practice"]
 )
 
 if page == "Grammar Check":
@@ -661,6 +661,69 @@ elif page == "Idiom Translator":
                     translator.add_idiom(idiom_data)
                     st.success("Idiom added successfully!")
                     st.rerun()
+
+elif page == "Pronunciation Practice":
+    st.subheader("Pronunciation Practice")
+
+    # Initialize pronunciation analyzer
+    from pronunciation_feedback import PronunciationAnalyzer
+    analyzer = PronunciationAnalyzer()
+
+    st.write("""
+    ### Practice Your Japanese Pronunciation
+    Record yourself speaking Japanese and get AI-powered feedback on your pronunciation.
+    """)
+
+    # Text input for target phrase
+    target_phrase = st.text_input(
+        "Enter the Japanese phrase you want to practice:",
+        placeholder="例：こんにちは"
+    )
+
+    # Recording interface
+    if target_phrase:
+        if st.button("🎙️ Start Recording"):
+            with st.spinner("Recording... Speak now!"):
+                try:
+                    # Record audio
+                    audio, sample_rate = analyzer.record_audio()
+                    audio_path = analyzer.save_audio(audio, sample_rate)
+
+                    # Analyze pronunciation
+                    results = analyzer.analyze_pronunciation(audio_path, target_phrase)
+
+                    # Display results
+                    st.success("Recording completed!")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(
+                            "Pronunciation Score",
+                            f"{results['pronunciation_score']:.1f}%"
+                        )
+                    with col2:
+                        st.write("**Detected Text:**")
+                        st.write(results['transcribed_text'])
+
+                    st.info(results['feedback'])
+
+                    # Cleanup
+                    analyzer.cleanup(audio_path)
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
+                    st.warning("Please make sure your microphone is connected and try again.")
+    else:
+        st.info("Enter a Japanese phrase above to start practicing pronunciation.")
+
+    # Add pronunciation tips
+    with st.expander("📚 Pronunciation Tips"):
+        st.write("""
+        - Speak clearly and at a natural pace
+        - Pay attention to pitch accent
+        - Practice with short phrases first
+        - Record yourself multiple times to track improvement
+        - Listen to native speakers for reference
+        """)
 
 # Recent checks section in sidebar
 st.sidebar.title("Recent Checks")
