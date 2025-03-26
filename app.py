@@ -53,6 +53,82 @@ st.markdown("""
     .sidebar .sidebar-content {
         transition: margin 0.3s ease-in-out;
     }
+    /* Achievement cards animation */
+    .achievement-card {
+        animation: slideIn 0.5s ease-out;
+        transition: transform 0.3s ease;
+    }
+    .achievement-card:hover {
+        transform: translateY(-5px);
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Progress bar animations */
+    .stProgress > div {
+        transition: width 1s ease-in-out;
+    }
+
+    /* Tab transitions */
+    .stTabs {
+        transition: opacity 0.3s ease;
+    }
+    .stTab {
+        transition: background-color 0.3s ease;
+    }
+
+    /* Loading animation */
+    .stSpinner {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Success message animation */
+    .stSuccess {
+        animation: fadeInUp 0.5s ease-out;
+    }
+    @keyframes fadeInUp {
+        from { 
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Error message animation */
+    .stError {
+        animation: shake 0.5s ease-in-out;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    /* Form transition */
+    .stForm {
+        transition: all 0.3s ease;
+    }
+    .stForm:hover {
+        transform: scale(1.01);
+    }
+
+    /* Sidebar active state */
+    .stSidebar [data-testid="stSidebarNav"] li {
+        transition: all 0.2s ease;
+    }
+    .stSidebar [data-testid="stSidebarNav"] li:hover {
+        background-color: rgba(151, 166, 195, 0.15);
+        border-radius: 4px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
