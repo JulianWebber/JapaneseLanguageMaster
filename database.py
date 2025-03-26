@@ -263,7 +263,6 @@ class LanguageAssessment(Base):
     weak_areas = Column(JSON)  # Areas that need more practice
     strong_areas = Column(JSON)  # Areas of strength
 
-    user_progress = relationship("UserProgress", backref="assessments")
 
     @classmethod
     def create(cls, db, session_id, assessment_data):
@@ -286,7 +285,6 @@ class LanguageAssessment(Base):
         return db.query(cls).filter(
             cls.session_id == session_id
         ).order_by(cls.assessment_date.desc()).first()
-
 
 class IdiomTranslation(Base):
     __tablename__ = "idiom_translations"

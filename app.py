@@ -483,6 +483,26 @@ elif page == "Idiom Translator": # New Idiom Translator page
                             st.write("**English Equivalent:**", idiom['english'])
                             st.write("**Explanation:**", idiom['explanation'])
                             st.write("**Example Usage:**", idiom['example'])
+
+                            # Add mnemonic device section
+                            with st.expander("🧠 Memory Aid", expanded=True):
+                                mnemonic = idiom['mnemonic']
+                                if mnemonic['sound_hints']:
+                                    st.write("**Sound Hints:**")
+                                    for hint in mnemonic['sound_hints']:
+                                        st.write(f"- '{hint['japanese']}' sounds like '{hint['english']}'")
+
+                                if mnemonic['visual_cues']:
+                                    st.write("**Visual Hints:**")
+                                    for cue in mnemonic['visual_cues']:
+                                        st.write(f"- {cue}")
+
+                                st.write("**Memory Story:**")
+                                st.info(mnemonic['mnemonic_story'])
+
+                                st.write("**Practice Tip:**")
+                                st.success(mnemonic['practice_tip'])
+
                 else:
                     st.info("No idioms found matching your search.")
 

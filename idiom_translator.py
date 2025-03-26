@@ -1,10 +1,12 @@
 from typing import List, Dict, Optional
 from database import IdiomTranslation
+from mnemonic_generator import MnemonicGenerator
 
 class IdiomTranslator:
     def __init__(self, db=None):
         self.db = db
         self.cached_idioms = {}
+        self.mnemonic_generator = MnemonicGenerator()
 
     def add_idiom(self, idiom_data: Dict) -> IdiomTranslation:
         """Add a new idiom translation to the database"""
@@ -22,7 +24,7 @@ class IdiomTranslator:
 
     def _format_idiom(self, idiom: IdiomTranslation) -> Dict:
         """Format idiom data for display"""
-        return {
+        formatted_idiom = {
             'japanese': idiom.japanese_idiom,
             'literal': idiom.literal_meaning,
             'english': idiom.english_equivalent,
@@ -31,16 +33,25 @@ class IdiomTranslator:
             'tags': idiom.tags
         }
 
+        # Generate mnemonic device
+        mnemonic = self.mnemonic_generator.generate_mnemonic(
+            idiom.japanese_idiom,
+            idiom.english_equivalent
+        )
+        formatted_idiom['mnemonic'] = mnemonic
+
+        return formatted_idiom
+
     def analyze_text_for_idioms(self, text: str) -> List[Dict]:
         """Find idioms in the given text"""
         idioms = self.get_all_idioms()
         found_idioms = []
-        
+
         for idiom in idioms:
             if idiom['japanese'] in text:
                 found_idioms.append({
                     **idiom,
                     'position': text.index(idiom['japanese'])
                 })
-        
+
         return sorted(found_idioms, key=lambda x: x['position'])
