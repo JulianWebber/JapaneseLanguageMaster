@@ -288,6 +288,38 @@ class LanguageAssessment(Base):
         ).order_by(cls.assessment_date.desc()).first()
 
 
+class IdiomTranslation(Base):
+    __tablename__ = "idiom_translations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    japanese_idiom = Column(String(255), nullable=False)
+    literal_meaning = Column(Text)
+    english_equivalent = Column(Text)
+    explanation = Column(Text)
+    usage_example = Column(Text)
+    tags = Column(JSON, default=list)  # For categorizing idioms
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    @classmethod
+    def create(cls, db, idiom_data):
+        idiom = cls(**idiom_data)
+        db.add(idiom)
+        db.commit()
+        db.refresh(idiom)
+        return idiom
+
+    @classmethod
+    def get_all(cls, db):
+        return db.query(cls).all()
+
+    @classmethod
+    def search(cls, db, query):
+        return db.query(cls).filter(
+            cls.japanese_idiom.ilike(f"%{query}%") |
+            cls.english_equivalent.ilike(f"%{query}%") |
+            cls.literal_meaning.ilike(f"%{query}%")
+        ).all()
+
 # Create all tables
 Base.metadata.create_all(bind=engine)
 

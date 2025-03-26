@@ -11,6 +11,7 @@ from visualizations import (
     create_achievement_progress
 )
 from assessment import LanguageLevelAssessor
+from idiom_translator import IdiomTranslator # Added import
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -37,9 +38,9 @@ with get_database() as db:
 st.title("Japanese Grammar Checker")
 
 # Sidebar navigation
-page = st.sidebar.radio(
+page = st.sidebar.radio( # Updated navigation
     "Navigation",
-    ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment"]
+    ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator"]
 )
 
 if page == "Grammar Check":
@@ -450,6 +451,77 @@ elif page == "Self Assessment":
                     for practice in recommendations['practice_areas']:
                         st.info(practice)
 
+
+elif page == "Idiom Translator": # New Idiom Translator page
+    st.subheader("Japanese Idiom Translator")
+
+    with get_database() as db:
+        translator = IdiomTranslator(db)
+
+        # Search interface
+        search_query = st.text_input(
+            "Search for idioms",
+            placeholder="Enter Japanese or English text..."
+        )
+
+        # Text analysis interface
+        text_input = st.text_area(
+            "Or enter text to find idioms",
+            placeholder="Enter Japanese text to find idioms..."
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if search_query:
+                st.write("### Search Results")
+                results = translator.search_idioms(search_query)
+                if results:
+                    for idiom in results:
+                        with st.expander(f"🎯 {idiom['japanese']}"):
+                            st.write("**Literal Meaning:**", idiom['literal'])
+                            st.write("**English Equivalent:**", idiom['english'])
+                            st.write("**Explanation:**", idiom['explanation'])
+                            st.write("**Example Usage:**", idiom['example'])
+                else:
+                    st.info("No idioms found matching your search.")
+
+        with col2:
+            if text_input:
+                st.write("### Found Idioms")
+                found_idioms = translator.analyze_text_for_idioms(text_input)
+                if found_idioms:
+                    for idiom in found_idioms:
+                        with st.expander(f"📍 {idiom['japanese']}"):
+                            st.write("**English Equivalent:**", idiom['english'])
+                            st.write("**Explanation:**", idiom['explanation'])
+                else:
+                    st.info("No idioms found in the text.")
+
+        # Add new idiom interface for administrators
+        with st.expander("Add New Idiom", expanded=False):
+            with st.form("new_idiom_form"):
+                japanese_idiom = st.text_input("Japanese Idiom")
+                literal_meaning = st.text_input("Literal Meaning")
+                english_equivalent = st.text_input("English Equivalent")
+                explanation = st.text_area("Explanation")
+                usage_example = st.text_area("Usage Example")
+                tags = st.text_input("Tags (comma-separated)")
+
+                submitted = st.form_submit_button("Add Idiom")
+
+                if submitted and japanese_idiom and english_equivalent:
+                    idiom_data = {
+                        "japanese_idiom": japanese_idiom,
+                        "literal_meaning": literal_meaning,
+                        "english_equivalent": english_equivalent,
+                        "explanation": explanation,
+                        "usage_example": usage_example,
+                        "tags": [tag.strip() for tag in tags.split(",")] if tags else []
+                    }
+                    translator.add_idiom(idiom_data)
+                    st.success("Idiom added successfully!")
+                    st.rerun()
 
 # Recent checks section in sidebar
 st.sidebar.title("Recent Checks")
