@@ -1,3 +1,9 @@
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 import os
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, ForeignKey, Float
@@ -7,10 +13,22 @@ from sqlalchemy.orm import sessionmaker, relationship
 # Get database URL from environment variable
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Create database engine
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create database engine with SSL configuration
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={
+            "sslmode": "require"
+        },
+        pool_pre_ping=True,  # Enable connection health checks
+        pool_recycle=3600    # Recycle connections every hour
+    )
+    logger.info("Database engine created successfully")
+except Exception as e:
+    logger.error(f"Failed to create database engine: {str(e)}")
+    raise
 
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 class GrammarCheck(Base):
