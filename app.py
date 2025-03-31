@@ -19,9 +19,63 @@ from lesson_content import LessonManager, Lesson, LessonCompletion
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
 
-# Add custom CSS for animations
+# Add custom CSS for animations and elaborate fonts
 st.markdown("""
 <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap');
+    
+    /* Base font styles */
+    .stApp {
+        font-family: 'EB Garamond', 'Noto Serif JP', serif;
+    }
+    
+    /* Headings */
+    h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        font-family: 'Cinzel', 'Noto Serif JP', serif;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+    }
+    
+    h1, .stMarkdown h1 {
+        border-bottom: 2px solid gold;
+        padding-bottom: 0.3em;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* Paragraph text */
+    p, .stMarkdown p {
+        font-family: 'EB Garamond', 'Noto Serif JP', serif;
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+    
+    /* Japanese text specifically */
+    .japanese-text {
+        font-family: 'Noto Serif JP', serif;
+        font-weight: 500;
+    }
+    
+    /* Buttons with decorative style */
+    .stButton > button {
+        font-family: 'Playfair Display', 'Noto Serif JP', serif;
+        border: 1px solid #ddd;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        letter-spacing: 0.03em;
+    }
+    
+    /* Sidebar navigation */
+    .stSidebar [data-testid="stSidebarNav"] {
+        font-family: 'Cinzel', 'Noto Serif JP', serif;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Form elements */
+    .stTextInput, .stTextArea, .stSelectbox > div > div {
+        font-family: 'EB Garamond', 'Noto Serif JP', serif;
+        font-size: 1.05rem;
+    }
+
     /* Animation keyframes */
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(20px); }
@@ -50,6 +104,7 @@ st.markdown("""
     .stButton > button:hover {
         transform: translateY(-2px);
         transition: transform 0.3s ease;
+        border-color: gold;
     }
 
     /* Sidebar transitions */
@@ -60,6 +115,9 @@ st.markdown("""
     .achievement-card {
         animation: slideIn 0.5s ease-out;
         transition: transform 0.3s ease;
+        font-family: 'Playfair Display', 'Noto Serif JP', serif;
+        border-left: 3px solid gold;
+        padding-left: 10px;
     }
     .achievement-card:hover {
         transform: translateY(-5px);
@@ -77,6 +135,7 @@ st.markdown("""
     /* Tab transitions */
     .stTabs {
         transition: opacity 0.3s ease;
+        font-family: 'Cinzel', 'Noto Serif JP', serif;
     }
     .stTab {
         transition: background-color 0.3s ease;
@@ -94,6 +153,8 @@ st.markdown("""
     /* Success message animation */
     .stSuccess {
         animation: fadeInUp 0.5s ease-out;
+        font-family: 'EB Garamond', 'Noto Serif JP', serif;
+        font-style: italic;
     }
     @keyframes fadeInUp {
         from { 
@@ -109,6 +170,7 @@ st.markdown("""
     /* Error message animation */
     .stError {
         animation: shake 0.5s ease-in-out;
+        font-family: 'EB Garamond', 'Noto Serif JP', serif;
     }
     @keyframes shake {
         0%, 100% { transform: translateX(0); }
@@ -131,6 +193,18 @@ st.markdown("""
     .stSidebar [data-testid="stSidebarNav"] li:hover {
         background-color: rgba(151, 166, 195, 0.15);
         border-radius: 4px;
+        border-left: 3px solid gold;
+    }
+    
+    /* Japanese text styling */
+    .grammar-result {
+        font-family: 'Noto Serif JP', serif;
+        font-size: 1.1rem;
+        line-height: 1.8;
+        padding: 15px;
+        border-left: 3px solid #6c757d;
+        background-color: rgba(108, 117, 125, 0.05);
+        margin: 10px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -161,13 +235,68 @@ def get_database():
 with get_database() as db:
     checker = GrammarChecker(grammar_rules, db)
 
-st.title("Japanese Grammar Checker")
+st.markdown("<h1 style='font-family: \"Cinzel\", \"Noto Serif JP\", serif; letter-spacing: 0.08em; text-align: center; padding: 20px 0; background: linear-gradient(90deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.2) 50%, rgba(255,215,0,0.1) 100%); border-radius: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.05);'>日本語文法チェッカー<br><span style=\"font-size: 0.7em; letter-spacing: 0.05em;\">Japanese Grammar Checker</span></h1>", unsafe_allow_html=True)
 
-# Sidebar navigation
+# Sidebar navigation with decorative header
+st.sidebar.markdown("""
+<div style="font-family: 'Cinzel', 'Noto Serif JP', serif; text-align: center; padding: 10px 0; margin-bottom: 20px; border-bottom: 2px solid gold; letter-spacing: 0.08em;">
+    <h3 style="margin: 0; color: #333; text-shadow: 1px 1px 1px rgba(0,0,0,0.1);">
+        <span style="font-size: 0.9em;">✧</span> Navigation <span style="font-size: 0.9em;">✧</span>
+    </h3>
+</div>
+""", unsafe_allow_html=True)
+
+# Create a custom CSS class for selected navigation items
+st.markdown("""
+<style>
+.nav-option {
+    padding: 10px 15px;
+    margin: 5px 0;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    font-family: 'EB Garamond', 'Noto Serif JP', serif;
+    border-left: 3px solid transparent;
+}
+.nav-option:hover {
+    background-color: rgba(255, 215, 0, 0.1);
+    border-left: 3px solid gold;
+}
+.nav-option.selected {
+    background-color: rgba(255, 215, 0, 0.2);
+    border-left: 3px solid gold;
+    font-weight: bold;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Navigation options with icons
+nav_options = [
+    {"name": "Grammar Check", "icon": "✓"},
+    {"name": "AI Grammar Analysis", "icon": "🤖"},
+    {"name": "Progress Dashboard", "icon": "📊"},
+    {"name": "Custom Rules", "icon": "⚙️"},
+    {"name": "Self Assessment", "icon": "📝"},
+    {"name": "Idiom Translator", "icon": "🔄"},
+    {"name": "Pronunciation Practice", "icon": "🎤"},
+    {"name": "Lessons", "icon": "📚"}
+]
+
+# Get current page from radio buttons but with enhanced styling
 page = st.sidebar.radio(
     "Navigation",
-    ["Grammar Check", "AI Grammar Analysis", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator", "Pronunciation Practice", "Lessons"]
+    [option["name"] for option in nav_options],
+    label_visibility="collapsed"
 )
+
+# Display the selected page in an elegant way
+st.sidebar.markdown(f"""
+<div style="text-align: center; margin: 20px 0; font-family: 'Cinzel', 'Noto Serif JP', serif;">
+    <p style="font-size: 0.85em; color: #666; margin-bottom: 5px;">CURRENT SECTION</p>
+    <h4 style="margin: 0; color: #333; text-shadow: 1px 1px 1px rgba(0,0,0,0.05);">
+        {next((option["icon"] for option in nav_options if option["name"] == page), "")} {page}
+    </h4>
+</div>
+""", unsafe_allow_html=True)
 
 if page == "Grammar Check":
     # Main input section
@@ -293,54 +422,121 @@ if page == "Grammar Check":
             if analysis_results['grammar_issues']:
                 for issue in analysis_results['grammar_issues']:
                     with st.expander(f"Issue: {issue.get('pattern', 'Grammar Pattern')}"):
-                        st.error(f"**Description:** {issue['description']}")
-                        st.info(f"**Suggestion:** {issue['suggestion']}")
-                        if 'example' in issue:
-                            st.success(f"**Example:** {issue['example']}")
-                        if 'context' in issue:
-                            st.write(f"**Context:** {issue['context']}")
-                        if issue.get('custom_rule'):
-                            st.info("_(Custom Rule)_")
+                        # Create the HTML with conditionals outside the f-string
+                        example_html = f"<p><span style='color:#35AF35; font-weight:bold; font-family:\"Cinzel\", serif;'>Example:</span> <span class='japanese-text'>{issue['example']}</span></p>" if 'example' in issue else ""
+                        context_html = f"<p><span style='color:#8035E3; font-weight:bold; font-family:\"Cinzel\", serif;'>Context:</span> <span class='japanese-text'>{issue['context']}</span></p>" if 'context' in issue else ""
+                        custom_rule_html = "<p><em style='font-family:\"EB Garamond\", serif; font-style:italic;'>(Custom Rule)</em></p>" if issue.get('custom_rule') else ""
+                        
+                        # Now build the complete HTML
+                        html = f"""
+                        <div class="grammar-result">
+                            <p><span style="color:#E35335; font-weight:bold; font-family:'Cinzel', serif;">Description:</span> 
+                            <span class="japanese-text">{issue['description']}</span></p>
+                            
+                            <p><span style="color:#3581E3; font-weight:bold; font-family:'Cinzel', serif;">Suggestion:</span> 
+                            <span class="japanese-text">{issue['suggestion']}</span></p>
+                            
+                            {example_html}
+                            
+                            {context_html}
+                            
+                            {custom_rule_html}
+                        </div>
+                        """
+                        st.markdown(html, unsafe_allow_html=True)
             else:
-                st.success("No grammar issues found!")
+                st.markdown("""
+                <div style="padding: 15px; border-left: 3px solid #35AF35; background-color: rgba(53, 175, 53, 0.1); font-family: 'EB Garamond', serif; font-size: 1.1rem;">
+                    <span style="color:#35AF35; font-weight:bold; font-family:'Cinzel', serif;">✓</span> No grammar issues found!
+                </div>
+                """, unsafe_allow_html=True)
 
         with tab2:
             if analysis_results.get('advanced_patterns'):
                 for pattern in analysis_results['advanced_patterns']:
                     with st.expander(f"Pattern: {pattern['pattern']}"):
-                        st.write(f"**Usage:** {pattern['usage']}")
-                        st.write(f"**Context:** {pattern['context']}")
+                        st.markdown(f"""
+                        <div class="grammar-result">
+                            <p><span style="color:#3581E3; font-weight:bold; font-family:'Cinzel', serif;">Usage:</span> 
+                            <span class="japanese-text">{pattern['usage']}</span></p>
+                            
+                            <p><span style="color:#8035E3; font-weight:bold; font-family:'Cinzel', serif;">Context:</span> 
+                            <span class="japanese-text">{pattern['context']}</span></p>
+                        </div>
+                        """, unsafe_allow_html=True)
             else:
-                st.info("No advanced patterns detected.")
+                st.markdown("""
+                <div style="padding: 15px; border-left: 3px solid #3581E3; background-color: rgba(53, 129, 227, 0.1); font-family: 'EB Garamond', serif; font-size: 1.1rem;">
+                    <span style="color:#3581E3; font-weight:bold; font-family:'Cinzel', serif;">ℹ</span> No advanced patterns detected.
+                </div>
+                """, unsafe_allow_html=True)
 
         with tab3:
             if analysis_results.get('custom_patterns'):
                 for pattern in analysis_results['custom_patterns']:
                     with st.expander(f"Pattern: {pattern['pattern']}"):
-                        st.write(f"**Usage:** {pattern['usage']}")
-                        st.write(f"**Context:** {pattern['context']}")
+                        st.markdown(f"""
+                        <div class="grammar-result">
+                            <p><span style="color:#E35335; font-weight:bold; font-family:'Cinzel', serif;">Usage:</span> 
+                            <span class="japanese-text">{pattern['usage']}</span></p>
+                            
+                            <p><span style="color:#8035E3; font-weight:bold; font-family:'Cinzel', serif;">Context:</span> 
+                            <span class="japanese-text">{pattern['context']}</span></p>
+                        </div>
+                        """, unsafe_allow_html=True)
             else:
-                st.info("No custom patterns detected.")
+                st.markdown("""
+                <div style="padding: 15px; border-left: 3px solid #E35335; background-color: rgba(227, 83, 53, 0.1); font-family: 'EB Garamond', serif; font-size: 1.1rem;">
+                    <span style="color:#E35335; font-weight:bold; font-family:'Cinzel', serif;">ℹ</span> No custom patterns detected.
+                </div>
+                """, unsafe_allow_html=True)
 
         with tab4:
             if analysis_results['particle_usage']:
                 for particle in analysis_results['particle_usage']:
                     with st.expander(f"Particle: {particle['particle']}"):
-                        st.write(f"**Usage:** {particle['usage']}")
-                        st.write(f"**Context:** {particle['context']}")
+                        st.markdown(f"""
+                        <div class="grammar-result">
+                            <p><span style="color:#FFA500; font-weight:bold; font-family:'Cinzel', serif;">Usage:</span> 
+                            <span class="japanese-text">{particle['usage']}</span></p>
+                            
+                            <p><span style="color:#8035E3; font-weight:bold; font-family:'Cinzel', serif;">Context:</span> 
+                            <span class="japanese-text">{particle['context']}</span></p>
+                        </div>
+                        """, unsafe_allow_html=True)
             else:
-                st.info("No particle usage to analyze.")
+                st.markdown("""
+                <div style="padding: 15px; border-left: 3px solid #FFA500; background-color: rgba(255, 165, 0, 0.1); font-family: 'EB Garamond', serif; font-size: 1.1rem;">
+                    <span style="color:#FFA500; font-weight:bold; font-family:'Cinzel', serif;">ℹ</span> No particle usage to analyze.
+                </div>
+                """, unsafe_allow_html=True)
 
         with tab5:
             if analysis_results['verb_conjugations']:
                 for verb in analysis_results['verb_conjugations']:
                     with st.expander(f"Verb: {verb['base_form']}"):
-                        st.write(f"**Conjugation:** {verb['conjugation']}")
-                        st.write(f"**Form:** {verb['form']}")
-                        if 'context' in verb:
-                            st.write(f"**Context:** {verb['context']}")
+                        # Create context HTML separately
+                        context_html = f"<p><span style='color:#8035E3; font-weight:bold; font-family:\"Cinzel\", serif;'>Context:</span> <span class='japanese-text'>{verb['context']}</span></p>" if 'context' in verb else ""
+                        
+                        # Now build the complete HTML
+                        markup = f"""
+                        <div class="grammar-result">
+                            <p><span style="color:#9370DB; font-weight:bold; font-family:'Cinzel', serif;">Conjugation:</span> 
+                            <span class="japanese-text">{verb['conjugation']}</span></p>
+                            
+                            <p><span style="color:#3581E3; font-weight:bold; font-family:'Cinzel', serif;">Form:</span> 
+                            <span class="japanese-text">{verb['form']}</span></p>
+                            
+                            {context_html}
+                        </div>
+                        """
+                        st.markdown(markup, unsafe_allow_html=True)
             else:
-                st.info("No verb conjugations to analyze.")
+                st.markdown("""
+                <div style="padding: 15px; border-left: 3px solid #9370DB; background-color: rgba(147, 112, 219, 0.1); font-family: 'EB Garamond', serif; font-size: 1.1rem;">
+                    <span style="color:#9370DB; font-weight:bold; font-family:'Cinzel', serif;">ℹ</span> No verb conjugations to analyze.
+                </div>
+                """, unsafe_allow_html=True)
 
 elif page == "AI Grammar Analysis":
     st.subheader("AI-Powered Grammar Analysis Tool")

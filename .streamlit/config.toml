@@ -4,12 +4,8 @@ address = "0.0.0.0"
 port = 5000
 
 [theme]
-primaryColor = "#FF6B6B"
-backgroundColor = "#F8F9FA"
-secondaryBackgroundColor = "#E9ECEF"
-textColor = "#212529"
-font = "sans serif"
-
-[theme.navigationColor]
-base = "#4A90E2"
-hover = "#357ABD"
+primaryColor = "#DAA520"  # Gold color for primary accents
+backgroundColor = "#FFFCF5"  # Soft cream background
+secondaryBackgroundColor = "#F8F3E6"  # Slightly darker cream for contrast
+textColor = "#383838"  # Rich dark gray for text
+font = "serif"  # Serif font to match our elaborate styling
