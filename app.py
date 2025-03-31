@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 from grammar_checker import GrammarChecker
+from gpt_grammar_checker import GPTGrammarChecker
 from utils import load_grammar_rules, analyze_text
 from database import get_db, GrammarCheck, CustomGrammarRule, UserProgress, LanguageAssessment
 from contextlib import contextmanager
@@ -138,6 +139,10 @@ if 'previous_page' not in st.session_state:
 
 if 'session_id' not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
+    
+# Initialize session state for AI input
+if 'ai_input_text' not in st.session_state:
+    st.session_state.ai_input_text = ""
 
 # Load grammar rules
 grammar_rules = load_grammar_rules()
@@ -159,34 +164,119 @@ st.title("Japanese Grammar Checker")
 # Sidebar navigation
 page = st.sidebar.radio(
     "Navigation",
-    ["Grammar Check", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator", "Pronunciation Practice"]
+    ["Grammar Check", "AI Grammar Analysis", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator", "Pronunciation Practice"]
 )
 
 if page == "Grammar Check":
     # Main input section
     st.subheader("Enter Japanese Text")
     input_text = st.text_area("Japanese Text", placeholder="Enter Japanese text here...", key="input_text")
+    
+    # Add option to use AI-powered analysis
+    analysis_mode = st.radio(
+        "Analysis Mode",
+        ["Standard Analysis", "AI-Powered Analysis (OpenAI)"],
+        help="Standard analysis uses predefined grammar rules. AI-Powered analysis uses OpenAI's GPT model for more comprehensive feedback."
+    )
 
     if input_text:
         # Analysis section
         st.subheader("Grammar Analysis")
-
-        # Perform grammar check and update progress
-        with get_database() as db:
-            checker.load_custom_rules()  # Refresh custom rules
-            analysis_results = checker.check_grammar(input_text)
-
-            # Get or create user progress
-            user_progress = UserProgress.get_or_create(db, st.session_state.session_id)
-
-            # Create grammar check linked to user progress
-            check = GrammarCheck.create(db, input_text, analysis_results)
-            check.user_progress_id = user_progress.id
-
-            # Update user progress
-            user_progress.update_progress(db, analysis_results)
-
-            db.commit()
+        
+        with st.spinner("Analyzing your text..."):
+            # Perform grammar check based on selected mode
+            with get_database() as db:
+                checker.load_custom_rules()  # Refresh custom rules
+                
+                if analysis_mode == "Standard Analysis":
+                    analysis_results = checker.check_grammar(input_text)
+                else:
+                    # Use GPT-powered analysis
+                    try:
+                        gpt_checker = GPTGrammarChecker()
+                        gpt_results = gpt_checker.check_grammar(input_text)
+                        
+                        # Convert GPT results to match our standard format
+                        analysis_results = {
+                            'grammar_issues': [],
+                            'particle_usage': [],
+                            'verb_conjugations': [],
+                            'advanced_patterns': [],
+                            'custom_patterns': []
+                        }
+                        
+                        # Add grammar issues from GPT analysis
+                        if 'grammar_issues' in gpt_results and not gpt_results.get('error', False):
+                            for issue in gpt_results['grammar_issues']:
+                                analysis_results['grammar_issues'].append({
+                                    'pattern': issue.get('error_text', ''),
+                                    'description': issue.get('explanation', ''),
+                                    'suggestion': f"{issue.get('correct_text', '')} - {issue.get('rule', '')}",
+                                    'example': issue.get('correct_text', '')
+                                })
+                        
+                        # Add particle usage from GPT analysis
+                        if 'particle_usage' in gpt_results and not gpt_results.get('error', False):
+                            for particle in gpt_results['particle_usage']:
+                                analysis_results['particle_usage'].append({
+                                    'particle': particle.get('particle', ''),
+                                    'usage': particle.get('usage_context', ''),
+                                    'context': f"Correct: {particle.get('correct', False)}",
+                                    'suggestion': particle.get('suggestion', '')
+                                })
+                        
+                        # Add verb conjugations from GPT analysis
+                        if 'verb_conjugations' in gpt_results and not gpt_results.get('error', False):
+                            for verb in gpt_results['verb_conjugations']:
+                                analysis_results['verb_conjugations'].append({
+                                    'base_form': verb.get('verb', ''),
+                                    'conjugation': verb.get('suggestion', ''),
+                                    'form': verb.get('form', ''),
+                                    'context': f"Correct: {verb.get('correct', False)}"
+                                })
+                        
+                        # Display overall assessment if available
+                        if 'overall_assessment' in gpt_results and not gpt_results.get('error', False):
+                            st.info("### Overall Assessment")
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Naturalness", f"{gpt_results['overall_assessment'].get('naturalness', 0)}/5")
+                            with col2:
+                                st.metric("Formality", f"{gpt_results['overall_assessment'].get('formality', 0)}/5")
+                            with col3:
+                                st.metric("Clarity", f"{gpt_results['overall_assessment'].get('clarity', 0)}/5")
+                        
+                        # Display improved text if available
+                        if 'improved_text' in gpt_results and gpt_results['improved_text'] != input_text and not gpt_results.get('error', False):
+                            st.success("### Suggested Improvement")
+                            st.write(gpt_results['improved_text'])
+                        
+                        # Display honorific/polite speech analysis if available
+                        if 'honorific_polite_speech' in gpt_results and gpt_results['honorific_polite_speech'] and not gpt_results.get('error', False):
+                            st.info("### Honorific/Polite Speech Analysis")
+                            for expression in gpt_results['honorific_polite_speech']:
+                                st.write(f"- **{expression.get('expression', '')}**: {expression.get('type', '')} " +
+                                        f"(Level: {expression.get('level', '')})")
+                                if expression.get('alternative', ''):
+                                    st.write(f"  Alternative: {expression['alternative']}")
+                    
+                    except Exception as e:
+                        st.error(f"Error in AI analysis: {str(e)}")
+                        # Fallback to standard analysis
+                        analysis_results = checker.check_grammar(input_text)
+                        st.warning("Falling back to standard analysis due to an error with AI processing.")
+                
+                # Get or create user progress
+                user_progress = UserProgress.get_or_create(db, st.session_state.session_id)
+                
+                # Create grammar check linked to user progress
+                check = GrammarCheck.create(db, input_text, analysis_results)
+                check.user_progress_id = user_progress.id
+                
+                # Update user progress
+                user_progress.update_progress(db, analysis_results)
+                
+                db.commit()
 
         # Display results in tabs
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -249,6 +339,245 @@ if page == "Grammar Check":
                             st.write(f"**Context:** {verb['context']}")
             else:
                 st.info("No verb conjugations to analyze.")
+
+elif page == "AI Grammar Analysis":
+    st.subheader("AI-Powered Grammar Analysis Tool")
+    
+    with st.expander("About this Tool", expanded=False):
+        st.markdown("""
+        This tool uses OpenAI's GPT language model to provide in-depth analysis of Japanese grammar.
+        - Get comprehensive grammar explanations
+        - Generate practice examples for specific grammar points
+        - Receive detailed feedback on your writing
+        - Understand honorific and polite speech usage
+        """)
+    
+    # Left column for text input, right column for analysis settings
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        ai_input_text = st.text_area(
+            "Japanese Text for Analysis", 
+            placeholder="Enter Japanese text here for AI analysis...",
+            value=st.session_state.ai_input_text,
+            height=150
+        )
+    
+    with col2:
+        analysis_options = st.multiselect(
+            "Analysis Focus",
+            [
+                "Grammar Errors", 
+                "Particle Usage", 
+                "Verb Conjugations",
+                "Honorific Speech",
+                "Naturalness",
+                "Formality"
+            ],
+            default=["Grammar Errors"],
+            help="Select what aspects of the text you want the AI to focus on"
+        )
+        
+        difficulty_level = st.selectbox(
+            "Practice Examples Difficulty",
+            ["初級 (Beginner)", "中級 (Intermediate)", "上級 (Advanced)"],
+            index=1
+        )
+        # Extract just the Japanese part of the difficulty level
+        difficulty = difficulty_level.split(" ")[0]
+    
+    # Analysis button
+    analyze_button = st.button("Analyze with AI", type="primary")
+    
+    if analyze_button and ai_input_text:
+        with st.spinner("AI is analyzing your text..."):
+            try:
+                # Initialize the GPT checker
+                gpt_checker = GPTGrammarChecker()
+                
+                # Perform the analysis
+                results = gpt_checker.check_grammar(ai_input_text)
+                
+                if results.get('error', False):
+                    st.error(f"Error in AI analysis: {results.get('message', 'Unknown error')}")
+                else:
+                    # Display overall assessment with improved visuals
+                    if 'overall_assessment' in results:
+                        st.subheader("Overall Assessment")
+                        cols = st.columns(3)
+                        metrics = {
+                            "Naturalness": "🌟",
+                            "Formality": "👔",
+                            "Clarity": "💡"
+                        }
+                        
+                        for i, (metric, icon) in enumerate(metrics.items()):
+                            with cols[i]:
+                                value = results['overall_assessment'].get(metric.lower(), 0)
+                                st.metric(
+                                    f"{icon} {metric}",
+                                    f"{value}/5",
+                                    delta=None
+                                )
+                                # Add visual rating
+                                st.progress(value/5, text="")
+                    
+                    # Display improved text if available
+                    if 'improved_text' in results and results['improved_text'] != ai_input_text:
+                        st.subheader("Improved Version")
+                        st.success(results['improved_text'])
+                        
+                        # Add a comparison view
+                        with st.expander("Show Side-by-Side Comparison"):
+                            comp_col1, comp_col2 = st.columns(2)
+                            with comp_col1:
+                                st.markdown("**Original Text:**")
+                                st.info(ai_input_text)
+                            with comp_col2:
+                                st.markdown("**Improved Text:**")
+                                st.success(results['improved_text'])
+                    
+                    # Grammar issues section
+                    if results.get('grammar_issues'):
+                        st.subheader("Grammar Issues")
+                        for i, issue in enumerate(results['grammar_issues']):
+                            with st.expander(f"Issue {i+1}: {issue.get('error_text', 'Grammar Issue')}"):
+                                st.error(f"**Error:** {issue.get('error_text', '')}")
+                                st.success(f"**Correction:** {issue.get('correct_text', '')}")
+                                st.info(f"**Explanation:** {issue.get('explanation', '')}")
+                                st.write(f"**Rule:** {issue.get('rule', '')}")
+                                
+                                # Add a button to get more detailed explanation
+                                if st.button(f"Get Detailed Explanation for Issue {i+1}"):
+                                    with st.spinner("Generating detailed explanation..."):
+                                        explanation = gpt_checker.get_detailed_explanation(
+                                            issue.get('rule', ''), 
+                                            ai_input_text
+                                        )
+                                        st.markdown("### Detailed Explanation")
+                                        st.markdown(explanation)
+                                
+                                # Add a button to generate practice examples
+                                if st.button(f"Generate Practice Examples for Issue {i+1}"):
+                                    with st.spinner("Generating practice examples..."):
+                                        examples = gpt_checker.generate_practice_examples(
+                                            issue.get('rule', ''),
+                                            difficulty
+                                        )
+                                        
+                                        st.markdown("### Practice Examples")
+                                        for j, example in enumerate(examples):
+                                            st.markdown(f"**Example {j+1}:** {example.get('question', '')}")
+                                            options = example.get('options', [])
+                                            correct = example.get('correct_answer', '')
+                                            
+                                            # Display options with correct one highlighted
+                                            for option in options:
+                                                if option == correct:
+                                                    st.success(f"✓ {option}")
+                                                else:
+                                                    st.write(f"○ {option}")
+                                                    
+                                            st.info(f"**Explanation:** {example.get('explanation', '')}")
+                                            st.markdown("---")
+                    else:
+                        st.success("No grammar issues found! Your text looks good grammatically.")
+                    
+                    # Particle usage analysis
+                    if results.get('particle_usage'):
+                        st.subheader("Particle Usage Analysis")
+                        for particle in results['particle_usage']:
+                            is_correct = particle.get('correct', False)
+                            with st.expander(
+                                f"{'✓' if is_correct else '✗'} Particle: {particle.get('particle', '')}"
+                            ):
+                                st.write(f"**Usage Context:** {particle.get('usage_context', '')}")
+                                if is_correct:
+                                    st.success("This particle is used correctly.")
+                                else:
+                                    st.error("This particle is used incorrectly.")
+                                    st.info(f"**Suggestion:** {particle.get('suggestion', '')}")
+                    
+                    # Verb conjugation analysis
+                    if results.get('verb_conjugations'):
+                        st.subheader("Verb Conjugation Analysis")
+                        for verb in results['verb_conjugations']:
+                            is_correct = verb.get('correct', False)
+                            with st.expander(
+                                f"{'✓' if is_correct else '✗'} Verb: {verb.get('verb', '')}"
+                            ):
+                                st.write(f"**Form:** {verb.get('form', '')}")
+                                if is_correct:
+                                    st.success("This verb is conjugated correctly.")
+                                else:
+                                    st.error("This verb is conjugated incorrectly.")
+                                    st.info(f"**Suggestion:** {verb.get('suggestion', '')}")
+                    
+                    # Honorific/polite speech analysis
+                    if results.get('honorific_polite_speech'):
+                        st.subheader("Honorific & Polite Speech Analysis")
+                        for expression in results['honorific_polite_speech']:
+                            with st.expander(f"Expression: {expression.get('expression', '')}"):
+                                st.write(f"**Type:** {expression.get('type', '')}")
+                                st.write(f"**Formality Level:** {expression.get('level', '')}")
+                                if expression.get('alternative', ''):
+                                    st.info(f"**Alternative:** {expression.get('alternative', '')}")
+                    
+                    # Grammar practice section
+                    st.subheader("Generate Practice Examples")
+                    grammar_point = st.text_input(
+                        "Enter a specific grammar point to practice",
+                        placeholder="e.g., て-form, potential form, causative form, etc."
+                    )
+                    
+                    if grammar_point:
+                        if st.button("Generate Practice Examples"):
+                            with st.spinner("Generating practice examples..."):
+                                examples = gpt_checker.generate_practice_examples(
+                                    grammar_point,
+                                    difficulty
+                                )
+                                
+                                st.markdown("### Practice Examples")
+                                for j, example in enumerate(examples):
+                                    with st.expander(f"Example {j+1}"):
+                                        st.markdown(f"**Question:** {example.get('question', '')}")
+                                        options = example.get('options', [])
+                                        correct = example.get('correct_answer', '')
+                                        
+                                        # Display options with correct one hidden until revealed
+                                        show_answer = st.checkbox(f"Show answer for Example {j+1}")
+                                        
+                                        for option in options:
+                                            if option == correct and show_answer:
+                                                st.success(f"✓ {option}")
+                                            else:
+                                                st.write(f"○ {option}")
+                                                
+                                        if show_answer:
+                                            st.info(f"**Explanation:** {example.get('explanation', '')}")
+            
+            except Exception as e:
+                st.error(f"An error occurred during AI analysis: {str(e)}")
+                st.info("Please try again with a different text or check your OpenAI API key.")
+    
+    else:
+        if not ai_input_text and analyze_button:
+            st.warning("Please enter some Japanese text to analyze.")
+        
+        # Show some example texts that the user can use
+        with st.expander("Example Texts to Try"):
+            examples = [
+                ("Basic greeting with particle mistake", "おはようございます。わたしは田中です。日本のから来ました。"),
+                ("Incorrect verb conjugation", "昨日、映画を見られます。とても面白かったです。"),
+                ("Incorrect usage of polite forms", "先生が来る。質問があります。"),
+                ("Mixed politeness levels", "こんにちは！僕は大学生だ。何を勉強していますか？")
+            ]
+            
+            for title, example in examples:
+                if st.button(f"Try: {title}"):
+                    st.session_state.ai_input_text = example
+                    st.rerun()
 
 elif page == "Progress Dashboard":
     st.subheader("Your Learning Progress")
