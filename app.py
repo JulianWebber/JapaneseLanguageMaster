@@ -9,8 +9,12 @@ import uuid
 from visualizations import (
     create_streak_chart,
     create_mastery_radar,
-    create_achievement_progress
+    create_achievement_progress,
+    create_japanese_cultural_badge_progress,
+    create_japanese_badge_card,
+    create_next_badge_card
 )
+from japanese_badges import get_badge_info
 from assessment import LanguageLevelAssessor
 from idiom_translator import IdiomTranslator
 from mood_selector import MoodDifficultySelector
@@ -856,15 +860,67 @@ elif page == "Progress Dashboard":
                 st.info("No grammar pattern data yet")
 
         # Achievements section with animated progress
-        st.subheader("🏆 Achievements")
+        st.subheader("🏆 日本文化の徽章 (Japanese Cultural Badges)")
 
         if user_progress.achievements:
-            # Achievement progress chart
-            achievement_chart = create_achievement_progress(user_progress.achievements)
-            if achievement_chart:
-                st.plotly_chart(achievement_chart, use_container_width=True)
+            # First tab shows the traditional achievement progress
+            tab1, tab2 = st.tabs(["Achievement Progress", "Japanese Cultural Badges"])
+            
+            with tab1:
+                # Achievement progress chart
+                achievement_chart = create_achievement_progress(user_progress.achievements)
+                if achievement_chart:
+                    st.plotly_chart(achievement_chart, use_container_width=True)
+                    
+                # Calculate total achievements
+                total_achievements = sum(len(achievements) for achievements in user_progress.achievements.values())
+                st.info(f"Total Achievements Earned: {total_achievements}")
 
-            with st.expander("Achievement Details", expanded=True):
+            with tab2:
+                # Japanese cultural badge progress visualization
+                cultural_badge_chart = create_japanese_cultural_badge_progress(user_progress.achievements)
+                if cultural_badge_chart:
+                    st.plotly_chart(cultural_badge_chart, use_container_width=True)
+                
+                # Categorized badges display
+                badge_categories = {
+                    "streak": "🔥 継続学習 (Continuous Learning)",
+                    "accuracy": "🎯 正確性 (Accuracy)",
+                    "practice": "📚 練習量 (Practice Volume)",
+                    "particle_mastery": "🔤 助詞の習得 (Particle Mastery)",
+                    "verb_mastery": "📝 動詞の習得 (Verb Mastery)",
+                    "pattern_mastery": "📖 文型の習得 (Grammar Pattern Mastery)"
+                }
+                
+                # For each category, display earned badges and next badge
+                for cat_id, cat_name in badge_categories.items():
+                    with st.expander(cat_name, expanded=False):
+                        earned_badges = []
+                        if cat_id == "streak":
+                            earned_badges = user_progress.achievements.get('streak', [])
+                        elif cat_id == "accuracy":
+                            earned_badges = user_progress.achievements.get('accuracy', [])
+                        elif cat_id == "practice":
+                            earned_badges = user_progress.achievements.get('practice', [])
+                        elif cat_id == "particle_mastery" or cat_id == "verb_mastery" or cat_id == "pattern_mastery":
+                            prefix = cat_id.split('_')[0]
+                            earned_badges = [badge for badge in user_progress.achievements.get('mastery', []) 
+                                             if badge.startswith(prefix)]
+                        
+                        # Display earned badges
+                        if earned_badges:
+                            for badge_id in earned_badges:
+                                st.markdown(create_japanese_badge_card(badge_id), unsafe_allow_html=True)
+                                
+                            # Show progress toward next badge
+                            st.markdown("#### Next Badge to Earn")
+                            st.markdown(create_next_badge_card(cat_id, earned_badges), unsafe_allow_html=True)
+                        else:
+                            st.markdown("#### Begin Your Journey")
+                            st.markdown(create_next_badge_card(cat_id, []), unsafe_allow_html=True)
+            
+            # Traditional achievement list in an expander
+            with st.expander("Achievement List", expanded=False):
                 # Streak Achievements
                 st.write("**Streak Achievements**")
                 for achievement in user_progress.achievements.get('streak', []):
@@ -889,17 +945,46 @@ elif page == "Progress Dashboard":
                     category, _, level = achievement.split('_')
                     icon = "🔤" if category == "particle" else "📝" if category == "verb" else "📖"
                     st.success(f"{icon} {category.title()} Mastery Level {level}%")
-
-            # Calculate total achievements
-            total_achievements = sum(len(achievements) for achievements in user_progress.achievements.values())
-            st.info(f"Total Achievements Earned: {total_achievements}")
         else:
-            st.info("Start practicing to earn achievements! 🌟")
-            st.write("Available achievements:")
-            st.write("- 🔥 Streak achievements (3, 7, 14, 30, 60, 90 days)")
-            st.write("- 🎯 Accuracy achievements (60%, 70%, 80%, 90%, 95%)")
-            st.write("- 📚 Practice count achievements (10, 50, 100, 500, 1000 checks)")
-            st.write("- 📖 Mastery level achievements (50%, 70%, 90% mastery)")
+            # Show introduction to Japanese cultural badges
+            st.info("Start practicing to earn Japanese cultural badges! 🏮")
+            st.markdown("""
+            <div style="
+                border: 2px solid #DAA520; 
+                border-radius: 10px; 
+                padding: 15px; 
+                margin: 10px 0; 
+                background: linear-gradient(135deg, rgba(255,252,245,0.9) 0%, rgba(248,243,230,0.9) 100%);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                font-family: serif;
+            ">
+                <h3 style="
+                    color: #D73E02; 
+                    font-family: serif;
+                    font-size: 1.4rem;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                    margin-top: 0;
+                ">🏮 日本文化の徽章について / About Japanese Cultural Badges 🏮</h3>
+                <p>Our achievement system is inspired by Japanese cultural elements, traditions, and concepts.</p>
+                <ul>
+                    <li><b>継続学習 (Continuous Learning)</b>: Badges inspired by Japanese moon viewing traditions and significant numbers in culture.</li>
+                    <li><b>正確性 (Accuracy)</b>: Badges based on traditional Japanese craftsmanship ranks and apprenticeship systems.</li>
+                    <li><b>練習量 (Practice Volume)</b>: Badges referencing famous Japanese collections and cultural numeric milestones.</li>
+                    <li><b>助詞の習得 (Particle Mastery)</b>: Traditional Japanese ranking system applied to your particle mastery.</li>
+                    <li><b>動詞の習得 (Verb Mastery)</b>: Progress through traditional Japanese craftsman roles as you master verbs.</li>
+                    <li><b>文型の習得 (Grammar Pattern Mastery)</b>: Zen-inspired journey from pattern learning to creative pattern breaking.</li>
+                </ul>
+                <p>Each badge includes cultural context to help you appreciate Japanese language learning as part of a broader cultural experience.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Preview of badges to earn
+            st.markdown("### Preview of Badges to Earn")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(create_japanese_badge_card("streak_3"), unsafe_allow_html=True)
+            with col2:
+                st.markdown(create_japanese_badge_card("accuracy_60"), unsafe_allow_html=True)
 
 elif page == "Custom Rules":
     st.subheader("Custom Grammar Rules")

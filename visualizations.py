@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 import pandas as pd
+from japanese_badges import get_badge_info, categorize_badges, get_next_badge
 
 def create_streak_chart(current_streak, longest_streak):
     """Create an animated streak progress chart"""
@@ -278,3 +279,307 @@ def create_lesson_progress_chart(completed_lessons, total_lessons_by_difficulty)
     )
     
     return fig
+
+def create_japanese_cultural_badge_progress(achievements):
+    """
+    Create a visualization for Japanese cultural achievement badges
+    
+    Args:
+        achievements: Dictionary of achievement lists by category
+        
+    Returns:
+        Plotly figure with badge progress visualization
+    """
+    if not achievements:
+        return None
+    
+    # Get badge information
+    earned_badges = []
+    for category, badge_ids in achievements.items():
+        for badge_id in badge_ids:
+            badge_info = get_badge_info(badge_id)
+            if badge_info:
+                earned_badges.append({
+                    "id": badge_id,
+                    "category": category,
+                    **badge_info
+                })
+    
+    if not earned_badges:
+        return None
+    
+    # Create a grouped bar chart showing progress in each category
+    categorized = categorize_badges()
+    
+    # Count earned badges in each detailed category
+    earned_counts = {}
+    for category, badges in categorized.items():
+        category_display = category.replace('_', ' ').title()
+        earned = sum(1 for badge in earned_badges if badge['id'] in [b['id'] for b in badges])
+        total = len(badges)
+        earned_counts[category_display] = {
+            "earned": earned,
+            "total": total,
+            "percentage": (earned / total * 100) if total > 0 else 0
+        }
+    
+    # Prepare data for visualization
+    categories = list(earned_counts.keys())
+    percentages = [earned_counts[cat]["percentage"] for cat in categories]
+    text_labels = [f"{earned_counts[cat]['earned']}/{earned_counts[cat]['total']}" for cat in categories]
+    
+    # Create color mapping for Japanese-themed colors
+    colors = [
+        '#D73E02',  # Vermilion (朱色, shu-iro)
+        '#E7A54D',  # Amber (琥珀色, kohaku-iro)
+        '#8A6BBE',  # Wisteria (藤色, fuji-iro)
+        '#24936E',  # Jade (翡翠色, hisui-iro)
+        '#6A4028',  # Cinnamon (肉桂色, nikuzuku-iro)
+        '#B28FCE'   # Lavender (藤紫, fujimurasaki)
+    ]
+    
+    fig = go.Figure()
+    
+    # Add bars for each category
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=percentages,
+        marker_color=colors[:len(categories)],
+        text=text_labels,
+        textposition='auto',
+    ))
+    
+    # Update layout with Japanese-inspired design
+    fig.update_layout(
+        title={
+            'text': '🏮 日本文化の徽章 Japanese Cultural Badges 🏮',
+            'font': {
+                'family': 'serif',
+                'size': 24,
+                'color': '#D73E02'
+            },
+            'x': 0.5,
+            'y': 0.95
+        },
+        yaxis_title='収集完了率 (Completion %)',
+        yaxis_range=[0, 100],
+        height=450,
+        paper_bgcolor='rgba(255,252,245,0.6)',  # Light cream background
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=80, b=40),
+        font=dict(
+            family='serif',
+        ),
+    )
+    
+    # Add a background pattern for Japanese-style design
+    fig.add_layout_image(
+        dict(
+            source="https://img.freepik.com/free-vector/japanese-wave-pattern-vector-vintage-art-print-remix-original-artwork_53876-116088.jpg",
+            xref="paper", yref="paper",
+            x=0, y=1,
+            sizex=1, sizey=1,
+            sizing="stretch",
+            opacity=0.05,
+            layer="below")
+    )
+    
+    return fig
+
+def create_japanese_badge_card(badge_id):
+    """
+    Create a stylized HTML card for a Japanese cultural badge
+    
+    Args:
+        badge_id: The ID of the badge to display
+        
+    Returns:
+        HTML string with badge card
+    """
+    badge = get_badge_info(badge_id)
+    
+    if not badge:
+        return ""
+    
+    html = f"""
+    <div style="
+        border: 2px solid #DAA520; 
+        border-radius: 10px; 
+        padding: 15px; 
+        margin: 10px 0; 
+        background: linear-gradient(135deg, rgba(255,252,245,0.9) 0%, rgba(248,243,230,0.9) 100%);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-family: serif;
+    ">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <div style="
+                font-size: 40px; 
+                margin-right: 15px; 
+                background-color: #FFF5E1; 
+                border-radius: 50%; 
+                width: 60px; 
+                height: 60px; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            ">{badge['icon']}</div>
+            <div>
+                <h3 style="
+                    margin: 0; 
+                    color: #DAA520; 
+                    font-family: serif;
+                    font-size: 1.4rem;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                ">{badge['name']}</h3>
+                <p style="
+                    margin: 3px 0 0 0; 
+                    font-style: italic; 
+                    color: #666;
+                    font-size: 0.9rem;
+                ">{badge['translation']}</p>
+            </div>
+        </div>
+        <p style="
+            margin: 10px 0; 
+            line-height: 1.5; 
+            color: #383838;
+            font-size: 1rem;
+        ">{badge['description']}</p>
+        <div style="
+            background-color: #F8F3E6; 
+            border-left: 3px solid #DAA520; 
+            padding: 10px; 
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        ">
+            <span style="font-weight: bold; color: #383838;">Cultural Note:</span> {badge['cultural_note']}
+        </div>
+    </div>
+    """
+    
+    return html
+
+def create_next_badge_card(category, current_achievements):
+    """
+    Create a stylized HTML card for the next badge a user can earn
+    
+    Args:
+        category: The achievement category
+        current_achievements: List of user's current achievements
+        
+    Returns:
+        HTML string with next badge card or message if all badges earned
+    """
+    next_badge = get_next_badge(category, current_achievements)
+    
+    if not next_badge:
+        return f"""
+        <div style="
+            border: 2px solid #DAA520; 
+            border-radius: 10px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            background: linear-gradient(135deg, rgba(255,252,245,0.9) 0%, rgba(248,243,230,0.9) 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-family: serif;
+            text-align: center;
+        ">
+            <p style="
+                margin: 10px 0; 
+                line-height: 1.5; 
+                color: #383838;
+                font-size: 1rem;
+            ">🎉 Congratulations! You've earned all badges in this category! 🎉</p>
+        </div>
+        """
+    
+    milestone = next_badge.get('id', '').split('_')[-1]
+    progress_message = ""
+    
+    if category == "streak":
+        progress_message = f"Current streak: {milestone} days needed"
+    elif category == "accuracy":
+        progress_message = f"Target accuracy: {milestone}%"
+    elif category == "practice":
+        progress_message = f"Practice goal: {milestone} checks"
+    elif "mastery" in category:
+        type_name = category.split('_')[0].title()
+        progress_message = f"{type_name} mastery goal: {milestone}%"
+    
+    html = f"""
+    <div style="
+        border: 2px dashed #DAA520; 
+        border-radius: 10px; 
+        padding: 15px; 
+        margin: 10px 0; 
+        background: linear-gradient(135deg, rgba(255,252,245,0.7) 0%, rgba(248,243,230,0.7) 100%);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-family: serif;
+        position: relative;
+    ">
+        <div style="
+            position: absolute;
+            top: -10px;
+            right: 10px;
+            background: #DAA520;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        ">
+            Next Badge
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <div style="
+                font-size: 40px; 
+                margin-right: 15px; 
+                background-color: #FFF5E1; 
+                border-radius: 50%; 
+                width: 60px; 
+                height: 60px; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                opacity: 0.6;
+            ">{next_badge['icon']}</div>
+            <div>
+                <h3 style="
+                    margin: 0; 
+                    color: #DAA520; 
+                    font-family: serif;
+                    font-size: 1.4rem;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                    opacity: 0.8;
+                ">{next_badge['name']}</h3>
+                <p style="
+                    margin: 3px 0 0 0; 
+                    font-style: italic; 
+                    color: #666;
+                    font-size: 0.9rem;
+                ">{next_badge['translation']}</p>
+            </div>
+        </div>
+        <p style="
+            margin: 10px 0; 
+            line-height: 1.5; 
+            color: #383838;
+            font-size: 1rem;
+        ">{next_badge['description']}</p>
+        <div style="
+            background-color: #F8F3E6; 
+            border-left: 3px solid #DAA520; 
+            padding: 10px; 
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        ">
+            <span style="font-weight: bold; color: #383838;">Progress Goal:</span> {progress_message}
+        </div>
+    </div>
+    """
+    
+    return html
