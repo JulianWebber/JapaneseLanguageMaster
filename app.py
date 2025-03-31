@@ -13,6 +13,8 @@ from visualizations import (
 )
 from assessment import LanguageLevelAssessor
 from idiom_translator import IdiomTranslator
+from mood_selector import MoodDifficultySelector
+from lesson_content import LessonManager, Lesson, LessonCompletion
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -164,7 +166,7 @@ st.title("Japanese Grammar Checker")
 # Sidebar navigation
 page = st.sidebar.radio(
     "Navigation",
-    ["Grammar Check", "AI Grammar Analysis", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator", "Pronunciation Practice"]
+    ["Grammar Check", "AI Grammar Analysis", "Progress Dashboard", "Custom Rules", "Self Assessment", "Idiom Translator", "Pronunciation Practice", "Lessons"]
 )
 
 if page == "Grammar Check":
@@ -1053,6 +1055,124 @@ elif page == "Pronunciation Practice":
         - Record yourself multiple times to track improvement
         - Listen to native speakers for reference
         """)
+
+elif page == "Lessons":
+    # Lessons page with mood and difficulty emoji selectors
+    st.title("Japanese Lessons")
+    
+    # Initialize mood/difficulty selector and lesson manager
+    with get_database() as db:
+        mood_selector = MoodDifficultySelector(st.session_state.session_id)
+        lesson_manager = LessonManager(db, st.session_state.session_id)
+    
+    # Check if we're viewing a specific lesson
+    if "selected_lesson_id" in st.session_state:
+        # Get the selected mood emoji (if any)
+        selected_mood = st.session_state.get("selected_mood", None)
+        
+        # Get the selected difficulty level (if any)
+        selected_difficulty = st.session_state.get("selected_difficulty", None)
+        
+        # Display the selected lesson
+        with get_database() as db:
+            lesson_manager = LessonManager(db, st.session_state.session_id)
+            lesson_manager.display_lesson_content(
+                st.session_state["selected_lesson_id"],
+                mood_emoji=selected_mood,
+                difficulty_emoji=selected_difficulty
+            )
+    else:
+        # Split into two tabs - one for lessons and one for mood analysis
+        tab1, tab2 = st.tabs(["Lessons", "Mood Tracker"])
+        
+        with tab1:
+            # Display mood selector at the top
+            st.markdown("### How are you feeling today?")
+            st.write("Your mood affects how we'll recommend lessons to you.")
+            
+            selected_mood = mood_selector.display_mood_selector()
+            
+            # Display difficulty selector
+            st.markdown("### Choose your preferred difficulty")
+            st.write("This helps us tailor lessons to your comfort level.")
+            
+            selected_difficulty = mood_selector.display_difficulty_selector()
+            
+            # Insert a divider
+            st.markdown("---")
+            
+            # Check if we have enough sample lessons, if not, create some
+            with get_database() as db:
+                lesson_count = len(lesson_manager.get_all_lessons())
+                
+                # If no lessons exist, create sample lessons for each difficulty/category
+                if lesson_count == 0:
+                    st.info("Setting up sample lessons for demonstration...")
+                    
+                    # Create sample lessons for each difficulty and category
+                    difficulties = ["Beginner", "Elementary", "Intermediate", "Advanced", "Native-like"]
+                    categories = ["grammar", "vocabulary", "reading", "listening", "speaking", "writing", "culture"]
+                    
+                    for difficulty in difficulties:
+                        # Create one lesson per category for this difficulty
+                        for category in categories:
+                            # Generate sample lesson content
+                            lesson_data = LessonManager.generate_sample_lesson(difficulty, category)
+                            
+                            # Create the lesson in the database
+                            lesson_manager.create_lesson(lesson_data)
+                    
+                    st.success(f"Created {len(difficulties) * len(categories)} sample lessons!")
+                
+                # Display lesson catalog with any selected filters
+                difficulty_filter = None
+                if selected_difficulty:
+                    difficulty_map = {
+                        "🌱": "Beginner",
+                        "🌿": "Elementary", 
+                        "🌲": "Intermediate", 
+                        "🏔️": "Advanced", 
+                        "🏯": "Native-like"
+                    }
+                    difficulty_filter = difficulty_map.get(selected_difficulty)
+                
+                lesson_manager.display_lesson_catalog(difficulty_filter=difficulty_filter)
+        
+        with tab2:
+            # Display mood analysis
+            mood_selector.display_mood_analysis()
+            
+            # Get user's lesson history
+            with get_database() as db:
+                lesson_manager = LessonManager(db, st.session_state.session_id)
+                lesson_history = lesson_manager.get_user_lesson_history()
+                
+                # Display lesson history if available
+                if lesson_history:
+                    st.subheader("Your Lesson History")
+                    
+                    for completion in lesson_history:
+                        with st.expander(f"Lesson: {completion.lesson.title} - {completion.completed_at.strftime('%Y-%m-%d %H:%M')}"):
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                if completion.mood_before:
+                                    st.write(f"Mood before: {completion.mood_before}")
+                                if completion.mood_after:
+                                    st.write(f"Mood after: {completion.mood_after}")
+                            
+                            with col2:
+                                if completion.difficulty_selected:
+                                    st.write(f"Difficulty: {completion.difficulty_selected}")
+                                if completion.satisfaction_rating:
+                                    st.write(f"Rating: {'⭐' * completion.satisfaction_rating}")
+                            
+                            with col3:
+                                if completion.notes:
+                                    st.write("Notes:")
+                                    st.write(completion.notes)
+                else:
+                    st.info("You haven't completed any lessons yet. Start learning to track your progress!")
 
 # Recent checks section in sidebar
 st.sidebar.title("Recent Checks")

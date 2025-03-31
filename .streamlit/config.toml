@@ -4,14 +4,12 @@ address = "0.0.0.0"
 port = 5000
 
 [theme]
-# Primary colors
-primaryColor = "#FF6B6B"  # Warm red for primary actions
-backgroundColor = "#F8F9FA"  # Light gray background
-secondaryBackgroundColor = "#E9ECEF"  # Slightly darker gray for cards/sections
-textColor = "#212529"  # Dark gray for text
-font = "sans serif"  # Clean, modern font
+primaryColor = "#FF6B6B"
+backgroundColor = "#F8F9FA"
+secondaryBackgroundColor = "#E9ECEF"
+textColor = "#212529"
+font = "sans serif"
 
-# Custom theme settings for Japanese learning context
 [theme.navigationColor]
-base = "#4A90E2"  # Blue for navigation
-hover = "#357ABD"  # Darker blue for hover states
+base = "#4A90E2"
+hover = "#357ABD"

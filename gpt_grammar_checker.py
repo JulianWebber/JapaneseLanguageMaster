@@ -1,29 +1,15 @@
-import os
 import json
 from typing import Dict, List, Any
-
-# Try to import OpenAI, but gracefully handle if not installed
-OPENAI_AVAILABLE = False
-try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    pass
+from gpt_client import OpenAIClient
 
 class GPTGrammarChecker:
     def __init__(self):
         """Initialize the GPT grammar checker with OpenAI API"""
-        if not OPENAI_AVAILABLE:
-            self.openai_error = "OpenAI package is not installed. Please install it with: pip install openai"
-            self.client = None
+        self.client = OpenAIClient()
+        if not self.client.check_api_key():
+            self.error_message = "OPENAI_API_KEY environment variable is not set"
         else:
-            self.openai_error = None
-            self.api_key = os.environ.get("OPENAI_API_KEY")
-            if not self.api_key:
-                self.openai_error = "OPENAI_API_KEY environment variable is not set"
-                self.client = None
-            else:
-                self.client = OpenAI(api_key=self.api_key)
+            self.error_message = None
         
         # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
         # do not change this unless explicitly requested by the user
@@ -39,11 +25,11 @@ class GPTGrammarChecker:
         Returns:
             Dictionary with grammar analysis results
         """
-        # Check if OpenAI is available
-        if not OPENAI_AVAILABLE or self.client is None:
+        # Check if OpenAI API key is available
+        if not self.client.check_api_key():
             return {
                 "error": True,
-                "message": self.openai_error or "OpenAI client not initialized",
+                "message": self.error_message or "OpenAI API key is not set",
                 "grammar_issues": [],
                 "particle_usage": [],
                 "verb_conjugations": [],
@@ -101,19 +87,44 @@ class GPTGrammarChecker:
         }
         """
         
+        # Create messages for the API request
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text}
+        ]
+        
+        # Request to use JSON format
+        response_format = {"type": "json_object"}
+        
         try:
-            response = self.client.chat.completions.create(
+            # Make API call using our client
+            response = self.client.chat_completion(
+                messages=messages,
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text}
-                ],
-                response_format={"type": "json_object"}
+                temperature=0.3,
+                response_format=response_format
             )
             
-            # Parse the JSON response
-            result = json.loads(response.choices[0].message.content)
-            return result
+            # Check for API errors
+            if response.get("error", False):
+                return {
+                    "error": True,
+                    "message": response.get("message", "Unknown error occurred during analysis."),
+                    "grammar_issues": [],
+                    "particle_usage": [],
+                    "verb_conjugations": [],
+                    "honorific_polite_speech": [],
+                    "overall_assessment": {
+                        "naturalness": 0,
+                        "formality": 0,
+                        "clarity": 0
+                    },
+                    "improved_text": text
+                }
+            
+            # Extract and parse the content
+            content = self.client.extract_content(response)
+            return json.loads(content)
         except Exception as e:
             # Return error information if API call fails
             return {
@@ -142,9 +153,9 @@ class GPTGrammarChecker:
         Returns:
             Detailed explanation of the grammar rule and how to use it correctly
         """
-        # Check if OpenAI is available
-        if not OPENAI_AVAILABLE or self.client is None:
-            return self.openai_error or "OpenAI client not initialized"
+        # Check if OpenAI API key is available
+        if not self.client.check_api_key():
+            return self.error_message or "OpenAI API key is not set"
             
         try:
             prompt = f"""
@@ -162,14 +173,24 @@ class GPTGrammarChecker:
             5. 学習者向けのアドバイス
             """
             
-            response = self.client.chat.completions.create(
+            # Create messages for the API request
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+            
+            # Make API call
+            response = self.client.chat_completion(
+                messages=messages,
                 model=self.model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                temperature=0.7
             )
             
-            return response.choices[0].message.content
+            # Check for API errors
+            if response.get("error", False):
+                return f"エラーが発生しました: {response.get('message', '不明なエラー')}"
+            
+            # Extract content
+            return self.client.extract_content(response)
         except Exception as e:
             return f"エラーが発生しました: {str(e)}"
     
@@ -184,9 +205,9 @@ class GPTGrammarChecker:
         Returns:
             List of practice examples with questions and answers
         """
-        # Check if OpenAI is available
-        if not OPENAI_AVAILABLE or self.client is None:
-            return [{"error": self.openai_error or "OpenAI client not initialized"}]
+        # Check if OpenAI API key is available
+        if not self.client.check_api_key():
+            return [{"error": self.error_message or "OpenAI API key is not set"}]
             
         try:
             prompt = f"""
@@ -205,15 +226,28 @@ class GPTGrammarChecker:
             ]
             """
             
-            response = self.client.chat.completions.create(
+            # Create messages for the API request
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+            
+            # Request to use JSON format
+            response_format = {"type": "json_object"}
+            
+            # Make API call
+            response = self.client.chat_completion(
+                messages=messages,
                 model=self.model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"}
+                temperature=0.7,
+                response_format=response_format
             )
             
-            result = json.loads(response.choices[0].message.content)
-            return result
+            # Check for API errors
+            if response.get("error", False):
+                return [{"error": response.get("message", "Unknown error occurred.")}]
+            
+            # Extract and parse the content
+            content = self.client.extract_content(response)
+            return json.loads(content)
         except Exception as e:
             return [{"error": f"エラーが発生しました: {str(e)}"}]
