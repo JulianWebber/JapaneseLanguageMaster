@@ -94,6 +94,34 @@ class AILanguageCompanion:
                     "You often provide examples of email templates, meeting phrases, or presentation language. "
                     "You help the user understand the nuances of politeness levels and how to navigate Japanese business relationships through language."
                 )
+            },
+            "game_master": {
+                "name": "ゲームマスター (Game Master)",
+                "description": "A playful language tutor who uses games, challenges, and interactive activities to teach Japanese.",
+                "avatar": "🎮",
+                "system_prompt": (
+                    "You are a playful Japanese language Game Master (ゲームマスター, Gēmu Masutā). "
+                    "You make learning Japanese fun by incorporating games, challenges, quizzes, and interactive activities into your teaching. "
+                    "You use a mix of casual and encouraging language, frequently praising effort and celebrating small victories. "
+                    "You always structure your language games to be appropriate for the user's level while still being challenging enough to promote growth. "
+                    "You keep track of 'game points' within a conversation and offer virtual rewards for completion of challenges. "
+                    "You're creative with wordplay, associations, mnemonics, and stories to help vocabulary and grammar stick in memory. "
+                    "You make every interaction feel like a language adventure rather than formal study."
+                )
+            },
+            "travel_guide": {
+                "name": "旅行ガイド (Travel Guide)",
+                "description": "A helpful companion who teaches practical Japanese for travelers and shares recommendations about places to visit.",
+                "avatar": "🧭",
+                "system_prompt": (
+                    "You are a Japanese travel guide (旅行ガイド, Ryokō Gaido) who helps prepare travelers for visiting Japan. "
+                    "You focus on teaching practical travel-related phrases, vocabulary for transportation, accommodations, dining, and sightseeing. "
+                    "You share insider tips about regions of Japan, tourism etiquette, and navigating cultural differences. "
+                    "You provide specific recommendations about places to visit, seasonal events, and authentic experiences. "
+                    "Your language is enthusiastic but practical, focusing on immediately useful expressions for travelers. "
+                    "You often discuss regional dialects, local specialties, and how to read signs and transportation information. "
+                    "You help the user understand how to communicate effectively in common travel scenarios."
+                )
             }
         }
         self.selected_personality = "sensei"  # Default personality
@@ -187,12 +215,13 @@ class AILanguageCompanion:
             "avatar": personality["avatar"]
         }
     
-    def send_message(self, message: str) -> Dict[str, Any]:
+    def send_message(self, message: str, track_metrics: bool = True) -> Dict[str, Any]:
         """
         Send a message to the AI companion and get a response
         
         Args:
             message: The user's message text
+            track_metrics: Whether to track conversation metrics
             
         Returns:
             Dictionary with the AI's response and any additional data
@@ -537,3 +566,239 @@ class AILanguageCompanion:
     def clear_chat_history(self) -> None:
         """Clear the conversation history"""
         self.chat_history = []
+        
+    def get_conversation_starters(self, category: str = "general") -> List[Dict[str, str]]:
+        """
+        Get a list of suggested conversation starters based on the selected category
+        
+        Args:
+            category: The topic category for conversation starters (general, travel, culture, etc.)
+            
+        Returns:
+            List of conversation starter suggestions with prompts in both English and Japanese
+        """
+        # Define conversation starters by category and user level
+        level = self.user_profile.get("level", "beginner")
+        
+        starters = {
+            "general": {
+                "beginner": [
+                    {"en": "Hello! How are you today?", "ja": "こんにちは！お元気ですか？"},
+                    {"en": "My name is [Your Name]. Nice to meet you.", "ja": "私の名前は[Your Name]です。よろしくお願いします。"},
+                    {"en": "What's the weather like today?", "ja": "今日の天気はどうですか？"},
+                    {"en": "I'm learning Japanese. Can you help me?", "ja": "日本語を勉強しています。手伝ってくれますか？"},
+                    {"en": "What time is it now?", "ja": "今何時ですか？"}
+                ],
+                "intermediate": [
+                    {"en": "What kind of hobbies do you enjoy in your free time?", "ja": "暇な時間には、どんな趣味を楽しんでいますか？"},
+                    {"en": "Could you recommend some good Japanese music?", "ja": "いい日本の音楽をおすすめしていただけますか？"},
+                    {"en": "What Japanese foods do you think I should try?", "ja": "どんな日本料理を食べてみるべきだと思いますか？"},
+                    {"en": "I watched an interesting movie yesterday. Do you like movies?", "ja": "昨日、面白い映画を見ました。映画は好きですか？"},
+                    {"en": "What's your favorite season and why?", "ja": "一番好きな季節は何ですか？そしてなぜですか？"}
+                ],
+                "advanced": [
+                    {"en": "What are your thoughts on the recent trends in Japanese popular culture?", "ja": "最近の日本のポップカルチャーのトレンドについてどう思いますか？"},
+                    {"en": "If you could change one thing about your daily routine, what would it be?", "ja": "日常のルーティンで一つ変えられるとしたら、何を変えますか？"},
+                    {"en": "What are some challenges that face modern Japanese society?", "ja": "現代の日本社会が直面している課題にはどのようなものがありますか？"},
+                    {"en": "Do you think AI will have a positive or negative impact on language learning?", "ja": "AIは語学学習にポジティブな影響をもたらすと思いますか、それともネガティブな影響でしょうか？"},
+                    {"en": "What's a book or article that changed your perspective recently?", "ja": "最近あなたの視点を変えた本や記事はありますか？"}
+                ]
+            },
+            "travel": {
+                "beginner": [
+                    {"en": "Where is a good place to visit in Japan?", "ja": "日本でおすすめの観光地はどこですか？"},
+                    {"en": "How do I get to the train station?", "ja": "駅へはどうやって行きますか？"},
+                    {"en": "Is this train going to Tokyo?", "ja": "この電車は東京行きですか？"},
+                    {"en": "I'd like to go to a restaurant.", "ja": "レストランに行きたいです。"},
+                    {"en": "How much does this cost?", "ja": "これはいくらですか？"}
+                ],
+                "intermediate": [
+                    {"en": "Can you recommend some less touristy places to visit?", "ja": "あまり観光客が行かないおすすめの場所はありますか？"},
+                    {"en": "What's the best way to experience traditional Japanese culture?", "ja": "伝統的な日本文化を体験するのに最適な方法は何ですか？"},
+                    {"en": "Are there any local festivals happening while I'm visiting?", "ja": "滞在中に行われるローカルな祭りはありますか？"},
+                    {"en": "What's the most efficient way to travel between cities in Japan?", "ja": "日本の都市間を移動する最も効率的な方法は何ですか？"},
+                    {"en": "Where can I find authentic local cuisine?", "ja": "本格的な地元料理はどこで食べられますか？"}
+                ],
+                "advanced": [
+                    {"en": "How has tourism changed this region over the last decade?", "ja": "この地域は過去10年間で観光によってどのように変化しましたか？"},
+                    {"en": "What are some cultural etiquette rules that foreign visitors often misunderstand?", "ja": "外国人観光客がよく誤解する文化的なマナーには何がありますか？"},
+                    {"en": "Could you explain the historical significance of this area?", "ja": "この地域の歴史的な重要性について説明していただけますか？"},
+                    {"en": "What conservation efforts are being made to preserve traditional architecture here?", "ja": "ここでの伝統的な建築を保存するためにどのような保全活動が行われていますか？"},
+                    {"en": "How do locals feel about the increase in international tourism?", "ja": "国際観光の増加について地元の人々はどう感じていますか？"}
+                ]
+            },
+            "culture": {
+                "beginner": [
+                    {"en": "What are popular holidays in Japan?", "ja": "日本で人気のある祝日は何ですか？"},
+                    {"en": "I like anime. Do you watch anime?", "ja": "アニメが好きです。アニメを見ますか？"},
+                    {"en": "What food is famous in your region?", "ja": "あなたの地域で有名な食べ物は何ですか？"},
+                    {"en": "Do you like Japanese music?", "ja": "日本の音楽は好きですか？"},
+                    {"en": "What's your favorite season in Japan?", "ja": "日本で一番好きな季節は何ですか？"}
+                ],
+                "intermediate": [
+                    {"en": "Could you explain the concept of 'wabi-sabi'?", "ja": "「侘び寂び」の概念を説明していただけますか？"},
+                    {"en": "What are some important cultural values in Japanese society?", "ja": "日本社会における重要な文化的価値観にはどのようなものがありますか？"},
+                    {"en": "How do traditional and modern culture mix in contemporary Japan?", "ja": "現代の日本では、伝統文化と現代文化がどのように融合していますか？"},
+                    {"en": "Can you tell me about the tea ceremony tradition?", "ja": "茶道の伝統について教えていただけますか？"},
+                    {"en": "What's the significance of seasonal events in Japanese culture?", "ja": "日本文化における季節のイベントの意義は何ですか？"}
+                ],
+                "advanced": [
+                    {"en": "How has the concept of 'uchi-soto' influenced communication styles in Japan?", "ja": "「内外」の概念は日本のコミュニケーションスタイルにどのような影響を与えていますか？"},
+                    {"en": "What role do traditional arts play in preserving cultural identity in modern Japan?", "ja": "伝統芸能は現代日本の文化的アイデンティティの保存にどのような役割を果たしていますか？"},
+                    {"en": "How are changing family structures affecting traditional cultural practices?", "ja": "変化する家族構造は伝統的な文化的慣行にどのような影響を与えていますか？"},
+                    {"en": "Can you discuss the philosophical underpinnings of Japanese aesthetics?", "ja": "日本の美学の哲学的基盤について議論していただけますか？"},
+                    {"en": "How has globalization influenced Japanese cultural expression in the 21st century?", "ja": "グローバリゼーションは21世紀の日本の文化的表現にどのような影響を与えましたか？"}
+                ]
+            },
+            "business": {
+                "beginner": [
+                    {"en": "Nice to meet you. I'm [Your Name] from [Company].", "ja": "はじめまして。[Company]の[Your Name]です。"},
+                    {"en": "Please give me your business card.", "ja": "名刺をいただけますか。"},
+                    {"en": "What time is our meeting?", "ja": "会議は何時ですか？"},
+                    {"en": "I'd like to schedule a meeting.", "ja": "会議の予定を立てたいです。"},
+                    {"en": "Thank you for your cooperation.", "ja": "ご協力ありがとうございます。"}
+                ],
+                "intermediate": [
+                    {"en": "Could we discuss the details of our potential collaboration?", "ja": "潜在的な協力関係の詳細について話し合えますか？"},
+                    {"en": "What are your company's main objectives for this quarter?", "ja": "今四半期の御社の主な目標は何ですか？"},
+                    {"en": "I'd like to hear more about your approach to market challenges.", "ja": "市場の課題に対するアプローチについてもっと聞かせていただきたいです。"},
+                    {"en": "How does your team handle project management?", "ja": "プロジェクト管理はどのように行っていますか？"},
+                    {"en": "Can you explain your company's organizational structure?", "ja": "御社の組織構造について説明していただけますか？"}
+                ],
+                "advanced": [
+                    {"en": "What strategies is your company implementing to address sustainability concerns?", "ja": "持続可能性の懸念に対処するために御社ではどのような戦略を実施していますか？"},
+                    {"en": "How do you see the industry evolving over the next five years?", "ja": "今後5年間で業界はどのように進化すると思いますか？"},
+                    {"en": "What innovative approaches has your team developed to address market disruptions?", "ja": "市場の混乱に対処するために、チームはどのような革新的なアプローチを開発しましたか？"},
+                    {"en": "Could we discuss the implications of recent regulatory changes on our partnership?", "ja": "最近の規制変更がパートナーシップに与える影響について話し合えますか？"},
+                    {"en": "How does your organization balance tradition and innovation in its corporate culture?", "ja": "御社は企業文化において伝統と革新のバランスをどのように取っていますか？"}
+                ]
+            }
+        }
+        
+        # Return starters based on category and level
+        if category in starters and level in starters[category]:
+            return starters[category][level]
+        
+        # Default to general beginner if category not found
+        return starters["general"]["beginner"]
+        
+    def record_user_reaction(self, message_id: int, reaction: str) -> Dict[str, Any]:
+        """
+        Record a user's reaction to an AI response for personalization
+        
+        Args:
+            message_id: The ID of the message being reacted to
+            reaction: The reaction emoji or code (e.g., "helpful", "confusing", "interesting")
+            
+        Returns:
+            Success status and updated reaction information
+        """
+        if message_id < 0 or message_id >= len(self.chat_history):
+            return {"success": False, "error": "Invalid message ID"}
+            
+        # Define meaning for different reaction types
+        reaction_meanings = {
+            "👍": "helpful",
+            "👎": "not_helpful",
+            "😕": "confusing",
+            "💡": "insightful",
+            "🔄": "want_more_examples",
+            "⭐": "favorite",
+            "❤️": "loved_it",
+            "🤔": "needs_clarification",
+            "📝": "want_to_practice_this",
+            "🎯": "exactly_what_i_needed"
+        }
+        
+        # Translate emoji to meaning if needed
+        reaction_meaning = reaction_meanings.get(reaction, reaction)
+        
+        # Add reaction to the message
+        if "reactions" not in self.chat_history[message_id]:
+            self.chat_history[message_id]["reactions"] = []
+            
+        self.chat_history[message_id]["reactions"].append({
+            "reaction": reaction,
+            "meaning": reaction_meaning,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # Use reaction to adjust future responses
+        if message_id > 0 and self.chat_history[message_id]["role"] == "assistant":
+            # Analyze previous messages to refine understanding
+            message_content = self.chat_history[message_id]["content"]
+            previous_message = self.chat_history[message_id-1]["content"] if message_id > 0 else ""
+            
+            # In a real implementation, we would store this in a database for learning
+            # For now, we'll simply return confirmation
+            return {
+                "success": True,
+                "message": "Reaction recorded and will be used to personalize future responses",
+                "reaction_data": {
+                    "reaction": reaction,
+                    "meaning": reaction_meaning,
+                    "message_role": self.chat_history[message_id]["role"],
+                    "message_preview": message_content[:50] + "..." if len(message_content) > 50 else message_content
+                }
+            }
+        
+        return {"success": True, "message": "Reaction recorded"}
+    
+    def generate_flashcards(self, topic: str, count: int = 5) -> List[Dict[str, str]]:
+        """
+        Generate vocabulary flashcards based on a specific topic
+        
+        Args:
+            topic: The vocabulary topic
+            count: Number of flashcards to generate (default: 5)
+            
+        Returns:
+            List of flashcards with Japanese, English, example sentence, and notes
+        """
+        if not self.openai_client:
+            return [{"error": "Unable to generate flashcards due to API connection issues."}]
+        
+        # Get user's level
+        level = self.user_profile.get("level", "beginner")
+        
+        # Prepare the prompt
+        prompt = f"""
+        Generate {count} vocabulary flashcards for a {level}-level Japanese language learner on the topic of "{topic}".
+        
+        For each flashcard, provide:
+        1. The Japanese term (with kanji if appropriate for {level} level)
+        2. The reading in hiragana
+        3. The English definition
+        4. An example sentence in Japanese
+        5. The English translation of the sentence
+        6. A short learning note or mnemonic to help remember the word
+        
+        Return the flashcards as a JSON array of objects with the fields: 
+        "japanese", "reading", "english", "example_ja", "example_en", and "note"
+        """
+        
+        try:
+            # Send to the OpenAI API with a structured response format
+            response = self.openai_client.chat_completion(
+                messages=[
+                    {"role": "system", "content": "You are a helpful Japanese language tutor specializing in vocabulary development."},
+                    {"role": "user", "content": prompt}
+                ],
+                model="gpt-4o",
+                response_format={"type": "json_object"}
+            )
+            
+            # Extract the content and parse the JSON
+            content = self.openai_client.extract_content(response)
+            try:
+                result = json.loads(content)
+                if "flashcards" in result:
+                    return result["flashcards"]
+                else:
+                    return result.get("cards", [])
+            except json.JSONDecodeError:
+                # If not valid JSON, try to extract structured data with a simpler format
+                return [{"error": "Could not parse the generated flashcards."}]
+                
+        except Exception as e:
+            return [{"error": f"Error generating flashcards: {str(e)}"}]

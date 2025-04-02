@@ -258,23 +258,51 @@ def render_chat_interface(companion: AILanguageCompanion):
         store_message("assistant", welcome_message, personality_avatar)
     
     # Render all stored messages
-    for msg in st.session_state.companion_messages:
+    for idx, msg in enumerate(st.session_state.companion_messages):
         if msg["role"] == "user":
             avatar_position = "user-avatar"
             message_class = "user-message"
             avatar = msg.get("avatar", "👤")
+            show_reactions = False
         else:
             avatar_position = "assistant-avatar"
             message_class = "assistant-message"
             avatar = msg.get("avatar", personality_avatar)
+            show_reactions = True
         
         content_with_breaks = msg['content'].replace('\n', '<br>')
+        
+        # Create unique message container ID for JavaScript interactions
+        message_id = f"msg_{idx}"
+        
         st.markdown(f"""
-        <div class='chat-message {message_class}'>
+        <div class='chat-message {message_class}' id='{message_id}'>
             <div class='avatar {avatar_position}'>{avatar}</div>
             <div class='message-content'>{content_with_breaks}</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Add reaction buttons for assistant messages
+        if show_reactions:
+            # Create a row of reaction buttons
+            reaction_cols = st.columns([1, 1, 1, 1, 1])
+            common_reactions = ["👍", "❤️", "🎯", "🔄", "🤔"]
+            
+            with st.container():
+                for i, emoji in enumerate(common_reactions):
+                    with reaction_cols[i]:
+                        if st.button(emoji, key=f"reaction_{idx}_{emoji}", help=f"React with {emoji}"):
+                            # Record the reaction
+                            result = companion.record_user_reaction(idx, emoji)
+                            if result.get("success", False):
+                                st.success(f"Recorded your {emoji} reaction!", icon=emoji)
+                            else:
+                                st.error(f"Failed to record reaction: {result.get('error', 'Unknown error')}")
+                            
+                            # Add short delay to show the success message
+                            import time
+                            time.sleep(0.5)
+                            st.rerun()
     
     # Create the input area
     st.markdown("<div class='chat-controls'>", unsafe_allow_html=True)
@@ -294,11 +322,41 @@ def render_chat_interface(companion: AILanguageCompanion):
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # Create a tools section
-    with st.expander("Learning Tools", expanded=False):
-        tool_cols = st.columns(3)
+    # Create a conversation starters section
+    with st.expander("💬 Conversation Starters", expanded=False):
+        st.markdown("#### Choose a topic to get conversation prompts:")
         
-        with tool_cols[0]:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            topic_category = st.selectbox(
+                "Topic category:",
+                ["general", "travel", "culture", "business"],
+                key="starter_category"
+            )
+        with col2:
+            if st.button("Get Starters", key="get_starters_btn"):
+                starters = companion.get_conversation_starters(topic_category)
+                st.session_state.conversation_starters = starters
+        
+        # Display conversation starters if available
+        if "conversation_starters" in st.session_state and st.session_state.conversation_starters:
+            st.markdown("#### Suggested conversation starters:")
+            for i, starter in enumerate(st.session_state.conversation_starters):
+                cols = st.columns([5, 1])
+                with cols[0]:
+                    st.markdown(f"**🇺🇸 {starter['en']}**")
+                    st.markdown(f"**🇯🇵 {starter['ja']}**")
+                with cols[1]:
+                    if st.button("Use", key=f"use_starter_{i}"):
+                        # Add to input and clear after clicking
+                        st.session_state.companion_input = starter['ja']
+                        st.rerun()
+    
+    # Create a tools section
+    with st.expander("🧰 Learning Tools", expanded=False):
+        tool_tabs = st.tabs(["Practice Exercises", "Translation Helper", "Grammar Explanation", "Vocabulary Flashcards"])
+        
+        with tool_tabs[0]:
             st.markdown("### 🏋️ Practice Exercises")
             exercise_type = st.selectbox(
                 "Select exercise type:",
@@ -314,7 +372,7 @@ def render_chat_interface(companion: AILanguageCompanion):
                     else:
                         st.error(exercise["exercise"])
         
-        with tool_cols[1]:
+        with tool_tabs[1]:
             st.markdown("### 🔤 Translation Helper")
             translation_direction = st.radio(
                 "Translation direction:",
@@ -339,7 +397,7 @@ def render_chat_interface(companion: AILanguageCompanion):
                 else:
                     st.warning("Please enter some text to translate.")
         
-        with tool_cols[2]:
+        with tool_tabs[2]:
             st.markdown("### 📚 Grammar Explanation")
             grammar_point = st.text_input(
                 "Enter a grammar point (e.g., te-form, ~たら, など):",
@@ -356,6 +414,124 @@ def render_chat_interface(companion: AILanguageCompanion):
                             st.error(explanation["explanation"])
                 else:
                     st.warning("Please enter a grammar point.")
+        
+        with tool_tabs[3]:
+            st.markdown("### 🎴 Vocabulary Flashcards")
+            
+            flashcard_col1, flashcard_col2 = st.columns([3, 1])
+            with flashcard_col1:
+                flashcard_topic = st.text_input(
+                    "Enter a vocabulary topic (e.g., food, travel, emotions):",
+                    key="flashcard_topic"
+                )
+            with flashcard_col2:
+                flashcard_count = st.number_input(
+                    "Count:",
+                    min_value=1,
+                    max_value=10,
+                    value=5,
+                    step=1,
+                    key="flashcard_count"
+                )
+            
+            if st.button("Generate Flashcards", key="generate_flashcards_btn"):
+                if flashcard_topic:
+                    with st.spinner("Creating vocabulary flashcards..."):
+                        flashcards = companion.generate_flashcards(flashcard_topic, flashcard_count)
+                        
+                        if flashcards and not any(card.get("error") for card in flashcards):
+                            st.session_state.flashcards = flashcards
+                            st.session_state.current_flashcard = 0
+                        else:
+                            error_msg = next((card.get("error") for card in flashcards if card.get("error")), "Failed to generate flashcards")
+                            st.error(error_msg)
+                else:
+                    st.warning("Please enter a vocabulary topic.")
+            
+            # Display flashcards if available
+            if "flashcards" in st.session_state and st.session_state.flashcards:
+                current_index = st.session_state.current_flashcard
+                if current_index < len(st.session_state.flashcards):
+                    card = st.session_state.flashcards[current_index]
+                    
+                    # Create a styled flashcard
+                    st.markdown("""
+                    <style>
+                    .flashcard {
+                        background-color: #fff8e1;
+                        border-radius: 10px;
+                        padding: 20px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        margin: 10px 0;
+                        border-left: 5px solid #DAA520;
+                    }
+                    .jp-term {
+                        font-size: 2rem;
+                        font-weight: bold;
+                        color: #1A1A1A;
+                        margin-bottom: 5px;
+                        font-family: 'Noto Serif JP', serif;
+                    }
+                    .reading {
+                        font-size: 1.2rem;
+                        color: #666;
+                        margin-bottom: 15px;
+                        font-family: 'Noto Sans JP', sans-serif;
+                    }
+                    .meaning {
+                        font-size: 1.5rem;
+                        margin-bottom: 15px;
+                        color: #333;
+                        font-family: 'EB Garamond', serif;
+                    }
+                    .example {
+                        background-color: rgba(218, 165, 32, 0.1);
+                        padding: 10px;
+                        border-radius: 5px;
+                        margin-bottom: 10px;
+                        font-family: 'Noto Serif JP', serif;
+                    }
+                    .note {
+                        font-style: italic;
+                        background-color: #e8f4f8;
+                        padding: 8px;
+                        border-radius: 5px;
+                        font-size: 0.9rem;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
+                    # Display the card content
+                    st.markdown(f"""
+                    <div class="flashcard">
+                        <div class="jp-term">{card.get('japanese', '')}</div>
+                        <div class="reading">{card.get('reading', '')}</div>
+                        <div class="meaning">{card.get('english', '')}</div>
+                        <div class="example">
+                            <div>{card.get('example_ja', '')}</div>
+                            <div>{card.get('example_en', '')}</div>
+                        </div>
+                        <div class="note">📝 {card.get('note', '')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Navigation buttons
+                    nav_cols = st.columns([1, 1, 1])
+                    with nav_cols[0]:
+                        if current_index > 0:
+                            if st.button("⬅️ Previous", key="prev_card"):
+                                st.session_state.current_flashcard -= 1
+                                st.rerun()
+                    
+                    with nav_cols[1]:
+                        st.markdown(f"**Card {current_index + 1} of {len(st.session_state.flashcards)}**", 
+                                  unsafe_allow_html=True)
+                    
+                    with nav_cols[2]:
+                        if current_index < len(st.session_state.flashcards) - 1:
+                            if st.button("Next ➡️", key="next_card"):
+                                st.session_state.current_flashcard += 1
+                                st.rerun()
     
     # Handle the send button click
     if send_button and user_input:
