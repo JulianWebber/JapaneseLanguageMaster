@@ -19,6 +19,8 @@ from assessment import LanguageLevelAssessor
 from idiom_translator import IdiomTranslator
 from mood_selector import MoodDifficultySelector
 from lesson_content import LessonManager, Lesson, LessonCompletion
+from ai_language_companion import AILanguageCompanion
+from companion_ui import render_chat_interface, render_conversation_history, render_companion_dashboard
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -278,6 +280,7 @@ nav_options = [
     {"name": "Grammar Check", "icon": "✓"},
     {"name": "AI Grammar Analysis", "icon": "🤖"},
     {"name": "Progress Dashboard", "icon": "📊"},
+    {"name": "Language Companion", "icon": "💬"},
     {"name": "Custom Rules", "icon": "⚙️"},
     {"name": "Self Assessment", "icon": "📝"},
     {"name": "Idiom Translator", "icon": "🔄"},
@@ -985,6 +988,127 @@ elif page == "Progress Dashboard":
                 st.markdown(create_japanese_badge_card("streak_3"), unsafe_allow_html=True)
             with col2:
                 st.markdown(create_japanese_badge_card("accuracy_60"), unsafe_allow_html=True)
+
+elif page == "Language Companion":
+    st.subheader("AI 言語学習パートナー / AI Language Learning Companion")
+    
+    # Initialize the AI companion
+    if 'ai_companion' not in st.session_state:
+        st.session_state.ai_companion = AILanguageCompanion(st.session_state.session_id)
+    
+    # Add decorative Japanese-styled header
+    st.markdown("""
+    <div style="
+        text-align: center;
+        padding: 20px 0;
+        margin-bottom: 20px;
+        background: linear-gradient(90deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.2) 50%, rgba(255,215,0,0.1) 100%);
+        border-radius: 5px;
+        font-family: 'Noto Serif JP', serif;
+    ">
+        <h2 style="
+            margin: 0;
+            color: #333;
+            font-family: 'Cinzel', 'Noto Serif JP', serif;
+            letter-spacing: 0.05em;
+        ">
+            会話で学ぶ日本語
+        </h2>
+        <p style="
+            margin: 5px 0 0 0;
+            font-style: italic;
+            color: #666;
+        ">
+            Learn Japanese Through Conversation
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Create tabs for different companion features
+    tab1, tab2, tab3 = st.tabs(["会話 / Chat", "学習プロフィール / Learning Profile", "設定 / Settings"])
+    
+    with tab1:
+        # Render the chat interface
+        render_chat_interface(st.session_state.ai_companion)
+    
+    with tab2:
+        # Render the user's learning profile and companion dashboard
+        render_companion_dashboard(st.session_state.ai_companion)
+        
+        # Conversation history management
+        render_conversation_history(st.session_state.ai_companion)
+    
+    with tab3:
+        st.markdown("### 設定 / Settings")
+        
+        st.markdown("""
+        <div style="
+            padding: 15px;
+            border-radius: 10px;
+            background-color: rgba(255, 252, 245, 0.8);
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            font-family: 'EB Garamond', 'Noto Serif JP', serif;
+        ">
+            <p style="margin-top: 0;">
+                Your AI language companion helps you practice Japanese through natural conversation.
+                Customize your experience with the settings below.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display OpenAI API connection status
+        if st.session_state.ai_companion.openai_client:
+            api_status = "Connected"
+            status_color = "#35AF35"
+        else:
+            api_status = "Disconnected"
+            status_color = "#E35335"
+            
+        st.markdown(f"""
+        <div style="
+            padding: 10px 15px;
+            border-radius: 5px;
+            background-color: rgba({status_color.replace('#', '')}, 0.1);
+            margin-bottom: 10px;
+            border-left: 3px solid {status_color};
+        ">
+            <span style="color: {status_color}; font-weight: bold;">API Status:</span> {api_status}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Additional settings could be added here in the future
+        st.info("Additional settings will be available in future updates.")
+        
+        # Provide usage tips
+        with st.expander("Usage Tips", expanded=True):
+            st.markdown("""
+            ### How to get the most from your language companion:
+            
+            1. **Choose the right personality** for your learning style
+            2. **Practice regularly** to build vocabulary and grammar skills
+            3. **Ask specific questions** about grammar points you're struggling with
+            4. **Try different conversation topics** to expand your vocabulary
+            5. **Use the translation tool** when you encounter unfamiliar words
+            6. **Generate practice exercises** tailored to your level
+            7. **Review your conversation history** to reinforce learning
+            
+            Your companion adapts to your level based on your progress in the app!
+            """)
+            
+        # Credits and information
+        st.markdown("""
+        <div style="
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-family: 'EB Garamond', serif;
+        ">
+            Powered by OpenAI's GPT-4o language model.<br>
+            Your conversations help personalize your learning experience.
+        </div>
+        """, unsafe_allow_html=True)
 
 elif page == "Custom Rules":
     st.subheader("Custom Grammar Rules")
