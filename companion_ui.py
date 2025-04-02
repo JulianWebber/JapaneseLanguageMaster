@@ -268,10 +268,11 @@ def render_chat_interface(companion: AILanguageCompanion):
             message_class = "assistant-message"
             avatar = msg.get("avatar", personality_avatar)
         
+        content_with_breaks = msg['content'].replace('\n', '<br>')
         st.markdown(f"""
         <div class='chat-message {message_class}'>
             <div class='avatar {avatar_position}'>{avatar}</div>
-            <div class='message-content'>{msg['content'].replace('\n', '<br>')}</div>
+            <div class='message-content'>{content_with_breaks}</div>
         </div>
         """, unsafe_allow_html=True)
     
