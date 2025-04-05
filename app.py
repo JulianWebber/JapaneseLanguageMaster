@@ -21,6 +21,7 @@ from mood_selector import MoodDifficultySelector
 from lesson_content import LessonManager, Lesson, LessonCompletion
 from ai_language_companion import AILanguageCompanion
 from companion_ui import render_chat_interface, render_conversation_history, render_companion_dashboard
+from translation_memory import render_translation_memory_ui
 
 # Initialize the application
 st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
@@ -285,7 +286,8 @@ nav_options = [
     {"name": "Self Assessment", "icon": "📝"},
     {"name": "Idiom Translator", "icon": "🔄"},
     {"name": "Pronunciation Practice", "icon": "🎤"},
-    {"name": "Lessons", "icon": "📚"}
+    {"name": "Lessons", "icon": "📚"},
+    {"name": "Translation Memory Bank", "icon": "🔠"}
 ]
 
 # Get current page from radio buttons but with enhanced styling
@@ -1578,6 +1580,9 @@ elif page == "Lessons":
                                     st.write(completion.notes)
                 else:
                     st.info("You haven't completed any lessons yet. Start learning to track your progress!")
+
+elif page == "Translation Memory Bank":
+    render_translation_memory_ui()
 
 # Recent checks section in sidebar
 st.sidebar.title("Recent Checks")

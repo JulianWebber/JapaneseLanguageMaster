@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, ForeignKey, Float
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, Boolean, ForeignKey, Float, or_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
@@ -81,6 +81,7 @@ class UserProgress(Base):
 
     grammar_checks = relationship("GrammarCheck", back_populates="user_progress")
     assessments = relationship("LanguageAssessment", backref="user_progress", cascade="all, delete-orphan")
+    translation_memories = relationship("TranslationMemory", back_populates="user_progress", cascade="all, delete-orphan")
 
     @classmethod
     def get_or_create(cls, db, session_id):
@@ -335,6 +336,191 @@ class IdiomTranslation(Base):
             cls.english_equivalent.ilike(f"%{query}%") |
             cls.literal_meaning.ilike(f"%{query}%")
         ).all()
+
+
+class TranslationMemory(Base):
+    __tablename__ = "translation_memories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), ForeignKey('user_progress.session_id'), nullable=False)
+    source_text = Column(Text, nullable=False)
+    source_language = Column(String(10), nullable=False)  # 'ja' or 'en'
+    translated_text = Column(Text, nullable=False)
+    target_language = Column(String(10), nullable=False)  # 'en' or 'ja'
+    context = Column(Text, nullable=True)  # Optional context information
+    tags = Column(JSON, default=list)  # For categorizing translations
+    quality_rating = Column(Integer, nullable=True)  # Optional user rating (1-5)
+    notes = Column(Text, nullable=True)  # Optional user notes about the translation
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship with UserProgress
+    user_progress = relationship("UserProgress", back_populates="translation_memories")
+    
+    @classmethod
+    def create(cls, db, translation_data):
+        """
+        Create a new translation memory entry
+        
+        Args:
+            db: Database session
+            translation_data: Dictionary with translation details
+            
+        Returns:
+            The newly created TranslationMemory object
+        """
+        new_translation = cls(
+            session_id=translation_data.get("session_id"),
+            source_text=translation_data.get("source_text"),
+            source_language=translation_data.get("source_language"),
+            translated_text=translation_data.get("translated_text"),
+            target_language=translation_data.get("target_language"),
+            context=translation_data.get("context"),
+            tags=translation_data.get("tags", []),
+            quality_rating=translation_data.get("quality_rating"),
+            notes=translation_data.get("notes")
+        )
+        db.add(new_translation)
+        db.commit()
+        db.refresh(new_translation)
+        return new_translation
+    
+    @classmethod
+    def get_user_translations(cls, db, session_id, limit=50, offset=0):
+        """
+        Get a user's translation history
+        
+        Args:
+            db: Database session
+            session_id: User's session ID
+            limit: Maximum number of results to return
+            offset: Number of results to skip (for pagination)
+            
+        Returns:
+            List of TranslationMemory objects
+        """
+        return db.query(cls).filter(
+            cls.session_id == session_id
+        ).order_by(
+            cls.created_at.desc()
+        ).offset(offset).limit(limit).all()
+    
+    @classmethod
+    def search_translations(cls, db, session_id, query, source_language=None, target_language=None):
+        """
+        Search for translations in a user's translation memory
+        
+        Args:
+            db: Database session
+            session_id: User's session ID
+            query: Search query
+            source_language: Optional filter for source language
+            target_language: Optional filter for target language
+            
+        Returns:
+            List of matching TranslationMemory objects
+        """
+        filters = [cls.session_id == session_id]
+        
+        # Add text search condition
+        text_filter = or_(
+            cls.source_text.ilike(f"%{query}%"),
+            cls.translated_text.ilike(f"%{query}%"),
+            cls.context.ilike(f"%{query}%"),
+            cls.notes.ilike(f"%{query}%"),
+            cls.tags.contains([query])
+        )
+        filters.append(text_filter)
+        
+        # Add language filters if provided
+        if source_language:
+            filters.append(cls.source_language == source_language)
+        if target_language:
+            filters.append(cls.target_language == target_language)
+        
+        return db.query(cls).filter(
+            *filters
+        ).order_by(
+            cls.created_at.desc()
+        ).all()
+    
+    @classmethod
+    def find_similar_translations(cls, db, session_id, source_text, source_language, similarity_threshold=0.6):
+        """
+        Find similar previous translations using fuzzy matching
+        
+        Args:
+            db: Database session
+            session_id: User's session ID
+            source_text: Text to find similar translations for
+            source_language: Source language code
+            similarity_threshold: Minimum similarity score (0.0-1.0)
+            
+        Returns:
+            List of TranslationMemory objects with similarity scores
+        """
+        # Get all translations with matching source language
+        translations = db.query(cls).filter(
+            cls.session_id == session_id,
+            cls.source_language == source_language
+        ).all()
+        
+        # If no translations found, return empty list
+        if not translations:
+            return []
+        
+        # Calculate similarity scores
+        import difflib
+        
+        results = []
+        for translation in translations:
+            similarity = difflib.SequenceMatcher(
+                None, 
+                source_text.lower(), 
+                translation.source_text.lower()
+            ).ratio()
+            
+            if similarity >= similarity_threshold:
+                results.append({
+                    "translation": translation,
+                    "similarity": similarity
+                })
+        
+        # Sort by similarity score (highest first)
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+        
+        return results
+    
+    @classmethod
+    def update_translation(cls, db, translation_id, session_id, update_data):
+        """
+        Update an existing translation memory entry
+        
+        Args:
+            db: Database session
+            translation_id: ID of the translation to update
+            session_id: User's session ID (for verification)
+            update_data: Dictionary with fields to update
+            
+        Returns:
+            Updated TranslationMemory object or None if not found
+        """
+        translation = db.query(cls).filter(
+            cls.id == translation_id,
+            cls.session_id == session_id
+        ).first()
+        
+        if translation:
+            # Update fields
+            for key, value in update_data.items():
+                if hasattr(translation, key):
+                    setattr(translation, key, value)
+            
+            translation.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(translation)
+        
+        return translation
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
