@@ -351,6 +351,8 @@ class TranslationMemory(Base):
     tags = Column(JSON, default=list)  # For categorizing translations
     quality_rating = Column(Integer, nullable=True)  # Optional user rating (1-5)
     notes = Column(Text, nullable=True)  # Optional user notes about the translation
+    document_id = Column(String(100), nullable=True)  # For grouping translations by document/conversation
+    context_type = Column(String(50), nullable=True)  # Type of context (business, casual, technical, etc.)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -378,7 +380,9 @@ class TranslationMemory(Base):
             context=translation_data.get("context"),
             tags=translation_data.get("tags", []),
             quality_rating=translation_data.get("quality_rating"),
-            notes=translation_data.get("notes")
+            notes=translation_data.get("notes"),
+            document_id=translation_data.get("document_id"),
+            context_type=translation_data.get("context_type")
         )
         db.add(new_translation)
         db.commit()
