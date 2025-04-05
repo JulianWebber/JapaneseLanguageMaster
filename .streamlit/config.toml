@@ -4,8 +4,8 @@ address = "0.0.0.0"
 port = 5000
 
 [theme]
-primaryColor = "#DAA520"  # Gold color for primary accents
-backgroundColor = "#FFFCF5"  # Soft cream background
-secondaryBackgroundColor = "#F8F3E6"  # Slightly darker cream for contrast
-textColor = "#383838"  # Rich dark gray for text
-font = "serif"  # Serif font to match our elaborate styling
+primaryColor = "#DAA520"
+backgroundColor = "#FFFCF5"
+secondaryBackgroundColor = "#F8F3E6"
+textColor = "#383838"
+font = "serif"
