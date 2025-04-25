@@ -1,0 +1,142 @@
+{
+  "水": {
+    "meaning": "water",
+    "components": "The character portrays water flowing",
+    "mnemonic": "Imagine water flowing like a river with its winding path, represented by the flowing lines in this kanji.",
+    "example_word": "水曜日",
+    "example_meaning": "Wednesday (water day)"
+  },
+  "火": {
+    "meaning": "fire",
+    "components": "The character shows flames rising",
+    "mnemonic": "The kanji looks like flames with a small spark at the bottom and fire rising up above it.",
+    "example_word": "火曜日",
+    "example_meaning": "Tuesday (fire day)"
+  },
+  "木": {
+    "meaning": "tree, wood",
+    "components": "A tree with trunk, branches, and roots",
+    "mnemonic": "The kanji looks like a tree with branches stretching out on top and roots at the bottom.",
+    "example_word": "木曜日",
+    "example_meaning": "Thursday (wood day)"
+  },
+  "日": {
+    "meaning": "sun, day",
+    "components": "A square with a line in the middle",
+    "mnemonic": "Think of the kanji as a window with the sun shining through it, marking the start of a new day.",
+    "example_word": "日曜日",
+    "example_meaning": "Sunday (sun day)"
+  },
+  "月": {
+    "meaning": "moon, month",
+    "components": "Represents the crescent moon",
+    "mnemonic": "The kanji looks like a crescent moon with its curved shape and opening on the right.",
+    "example_word": "月曜日",
+    "example_meaning": "Monday (moon day)"
+  },
+  "山": {
+    "meaning": "mountain",
+    "components": "Three peaks representing mountains",
+    "mnemonic": "The three strokes represent three mountain peaks of different heights, like a mountain range.",
+    "example_word": "富士山",
+    "example_meaning": "Mount Fuji"
+  },
+  "川": {
+    "meaning": "river",
+    "components": "Three flowing lines",
+    "mnemonic": "The three parallel lines represent water flowing in a river, each line a different current or stream.",
+    "example_word": "川の水",
+    "example_meaning": "river water"
+  },
+  "人": {
+    "meaning": "person",
+    "components": "A stick figure walking",
+    "mnemonic": "The kanji looks like a person walking or striding forward, leaning slightly.",
+    "example_word": "人間",
+    "example_meaning": "human being"
+  },
+  "口": {
+    "meaning": "mouth, opening",
+    "components": "A square opening",
+    "mnemonic": "The square shape represents an open mouth or an entrance/opening.",
+    "example_word": "人口",
+    "example_meaning": "population (person-mouth)"
+  },
+  "目": {
+    "meaning": "eye",
+    "components": "A window-like shape",
+    "mnemonic": "The kanji resembles an eye with its rectangular shape and inner line representing the pupil.",
+    "example_word": "目的",
+    "example_meaning": "purpose, goal"
+  },
+  "耳": {
+    "meaning": "ear",
+    "components": "Resembles an ear shape",
+    "mnemonic": "The curved lines and overall shape resemble a human ear on the side of a head.",
+    "example_word": "耳鼻科",
+    "example_meaning": "otolaryngology (ear and nose department)"
+  },
+  "手": {
+    "meaning": "hand",
+    "components": "A hand with fingers",
+    "mnemonic": "The strokes represent a hand with fingers outstretched, reaching out to grasp something.",
+    "example_word": "手紙",
+    "example_meaning": "letter (hand-paper)"
+  },
+  "足": {
+    "meaning": "foot, leg",
+    "components": "Components suggesting movement on foot",
+    "mnemonic": "Think of the upper part as a person and the lower part as their legs or feet in motion.",
+    "example_word": "足りない",
+    "example_meaning": "lacking, insufficient"
+  },
+  "心": {
+    "meaning": "heart, mind",
+    "components": "A heart shape",
+    "mnemonic": "The kanji resembles a heart with its curved shape and the dot inside representing the core.",
+    "example_word": "心配",
+    "example_meaning": "worry, concern"
+  },
+  "雨": {
+    "meaning": "rain",
+    "components": "Raindrops falling from clouds",
+    "mnemonic": "The top part represents clouds and the four dots below are raindrops falling from the sky.",
+    "example_word": "雨天",
+    "example_meaning": "rainy weather"
+  },
+  "花": {
+    "meaning": "flower",
+    "components": "Plant (艹) with transformation (化)",
+    "mnemonic": "The top part represents plant leaves, and the bottom part shows how the plant transforms into a beautiful flower.",
+    "example_word": "花見",
+    "example_meaning": "flower viewing (cherry blossom viewing)"
+  },
+  "金": {
+    "meaning": "gold, metal, money",
+    "components": "Metal ore in the ground",
+    "mnemonic": "The top part represents a mine or cave, and the bottom part shows the precious metal inside the earth.",
+    "example_word": "金曜日",
+    "example_meaning": "Friday (gold/metal day)"
+  },
+  "学": {
+    "meaning": "study, learning",
+    "components": "Child (子) under a roof (宀) with two hands",
+    "mnemonic": "A child under a roof with hands raised, eager to learn - representing academic study.",
+    "example_word": "大学",
+    "example_meaning": "university, college"
+  },
+  "校": {
+    "meaning": "school",
+    "components": "Tree (木) with comparison/verification (交)",
+    "mnemonic": "The tree (木) represents knowledge growing, and the other component suggests structured learning or examination.",
+    "example_word": "学校",
+    "example_meaning": "school"
+  },
+  "先": {
+    "meaning": "before, ahead, previous",
+    "components": "Person (人) walking ahead, reaching a destination first",
+    "mnemonic": "Someone (person element) walking ahead of you, arriving at the destination first.",
+    "example_word": "先生",
+    "example_meaning": "teacher (one who has gone before)"
+  }
+}
