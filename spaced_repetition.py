@@ -18,6 +18,12 @@ import uuid
 import random
 import plotly.express as px
 import numpy as np
+from visualizations import (
+    create_srs_forecast_chart,
+    create_srs_item_types_chart,
+    create_srs_review_history_chart,
+    create_srs_mastery_distribution_chart
+)
 
 class SpacedRepetitionItem:
     """
@@ -971,50 +977,131 @@ def render_spaced_repetition_ui():
             with col4:
                 st.metric("Success Rate", f"{stats['review_success_rate'] * 100:.1f}%")
             
-            # Items by type
-            st.subheader("Items by Type")
+            # Create tabs for different statistics views
+            stat_tabs = st.tabs(["Items by Type", "Review Activity", "Upcoming Reviews", "Memory Strength"])
             
-            if stats["items_by_type"]:
-                fig = px.pie(
-                    names=list(stats["items_by_type"].keys()),
-                    values=list(stats["items_by_type"].values()),
-                    title="Items by Type"
-                )
-                st.plotly_chart(fig)
+            # Items by Type tab
+            with stat_tabs[0]:
+                if stats["items_by_type"]:
+                    fig = create_srs_item_types_chart(stats["items_by_type"])
+                    st.plotly_chart(fig)
+                    
+                    # Show details in a table
+                    st.subheader("Item Type Details")
+                    type_df = pd.DataFrame({
+                        "Type": list(stats["items_by_type"].keys()),
+                        "Count": list(stats["items_by_type"].values()),
+                        "Percentage": [f"{count/stats['total_items']*100:.1f}%" for count in stats["items_by_type"].values()]
+                    })
+                    st.dataframe(type_df, hide_index=True)
+                else:
+                    st.info("No items added yet.")
             
-            # Daily activity
-            st.subheader("Review Activity")
+            # Review Activity tab
+            with stat_tabs[1]:
+                if stats["daily_items"]:
+                    fig = create_srs_review_history_chart(stats["daily_items"])
+                    st.plotly_chart(fig)
+                    
+                    # Show summary statistics
+                    review_counts = [item["count"] for item in stats["daily_items"]]
+                    if review_counts:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Average Daily Reviews", f"{sum(review_counts)/len(review_counts):.1f}")
+                        with col2:
+                            st.metric("Most Reviews in a Day", max(review_counts))
+                        with col3:
+                            active_days = len([c for c in review_counts if c > 0])
+                            st.metric("Active Days", f"{active_days}/{len(review_counts)}")
+                else:
+                    st.info("No review history yet. Start reviewing items to see your activity here.")
             
-            if stats["daily_items"]:
-                # Sort by date (ascending)
-                sorted_data = sorted(stats["daily_items"], key=lambda x: x["date"])
+            # Upcoming Reviews tab
+            with stat_tabs[2]:
+                forecast = srs.get_review_forecast(14)  # Next 14 days
                 
-                fig = px.line(
-                    x=[datetime.fromisoformat(item["date"]).strftime("%m-%d") for item in sorted_data],
-                    y=[item["count"] for item in sorted_data],
-                    labels={"x": "Date", "y": "Items Reviewed"},
-                    title="Daily Review Activity"
-                )
-                st.plotly_chart(fig)
+                if sum(forecast.values()) > 0:
+                    fig = create_srs_forecast_chart(forecast)
+                    st.plotly_chart(fig)
+                    
+                    # Show upcoming review schedule in a table
+                    st.subheader("Upcoming Review Schedule")
+                    today = datetime.now().date()
+                    
+                    # Calculate review load per day
+                    review_load = {}
+                    for date_str, count in forecast.items():
+                        date = datetime.fromisoformat(date_str).date()
+                        days_away = (date - today).days
+                        
+                        if count == 0:
+                            load = "None"
+                        elif count <= 5:
+                            load = "Light"
+                        elif count <= 15:
+                            load = "Moderate"
+                        else:
+                            load = "Heavy"
+                        
+                        review_load[date_str] = {
+                            "Date": date.strftime("%Y-%m-%d"),
+                            "Day": date.strftime("%A"),
+                            "Items": count,
+                            "Days From Now": days_away,
+                            "Load": load
+                        }
+                    
+                    # Convert to DataFrame and sort by date
+                    load_df = pd.DataFrame(review_load.values())
+                    if not load_df.empty:
+                        st.dataframe(load_df, hide_index=True)
+                else:
+                    st.info("No upcoming reviews in the next 14 days.")
             
-            # Review forecast
-            st.subheader("Upcoming Reviews")
-            
-            forecast = srs.get_review_forecast(14)  # Next 14 days
-            
-            if sum(forecast.values()) > 0:
-                # Format dates more nicely
-                formatted_days = [datetime.fromisoformat(day).strftime("%m-%d") for day in forecast.keys()]
-                
-                fig = px.bar(
-                    x=formatted_days,
-                    y=list(forecast.values()),
-                    labels={"x": "Date", "y": "Items Due"},
-                    title="Review Forecast (Next 14 Days)"
-                )
-                st.plotly_chart(fig)
-            else:
-                st.info("No upcoming reviews in the next 14 days.")
+            # Memory Strength tab
+            with stat_tabs[3]:
+                if stats["total_items"] > 0:
+                    fig = create_srs_mastery_distribution_chart(list(srs.items.values()))
+                    st.plotly_chart(fig)
+                    
+                    # Group items by ease factor range
+                    difficulty_groups = {
+                        "Very Difficult (1.3-1.5)": 0,
+                        "Challenging (1.5-2.5)": 0,
+                        "Well Known (2.5+)": 0
+                    }
+                    
+                    for item in srs.items.values():
+                        if item.ease_factor < 1.5:
+                            difficulty_groups["Very Difficult (1.3-1.5)"] += 1
+                        elif item.ease_factor < 2.5:
+                            difficulty_groups["Challenging (1.5-2.5)"] += 1
+                        else:
+                            difficulty_groups["Well Known (2.5+)"] += 1
+                    
+                    # Show difficulty distribution in a table
+                    diff_df = pd.DataFrame({
+                        "Difficulty Level": list(difficulty_groups.keys()),
+                        "Count": list(difficulty_groups.values()),
+                        "Percentage": [f"{count/stats['total_items']*100:.1f}%" for count in difficulty_groups.values()]
+                    })
+                    st.dataframe(diff_df, hide_index=True)
+                    
+                    # Add explanation of ease factor
+                    with st.expander("Understanding Memory Strength (Ease Factor)", expanded=False):
+                        st.markdown("""
+                        The **ease factor** is a measure of how easily you can recall an item:
+                        
+                        - **1.3-1.5**: Items you find very difficult to remember. These will appear more frequently.
+                        - **1.5-2.5**: Items that are moderately challenging. These appear at a balanced frequency.
+                        - **2.5+**: Items you know well. These appear less frequently to optimize your learning.
+                        
+                        The algorithm automatically adjusts each item's ease factor based on your recall quality.
+                        Items with lower ease factors will be shown more frequently to help strengthen your memory.
+                        """)
+                else:
+                    st.info("No items added yet.")
     
     # Settings tab
     with tabs[4]:

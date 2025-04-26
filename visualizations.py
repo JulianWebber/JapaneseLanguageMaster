@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 import pandas as pd
+import numpy as np
 from japanese_badges import get_badge_info, categorize_badges, get_next_badge
 
 def create_streak_chart(current_streak, longest_streak):
@@ -461,6 +462,237 @@ def create_japanese_badge_card(badge_id):
     """
     
     return html
+
+def create_srs_forecast_chart(forecast_data):
+    """
+    Create a chart showing spaced repetition review forecast
+    
+    Args:
+        forecast_data: Dictionary with dates as keys and counts as values
+        
+    Returns:
+        Plotly figure with review forecast
+    """
+    if not forecast_data:
+        return None
+    
+    # Prepare data
+    dates = list(forecast_data.keys())
+    counts = list(forecast_data.values())
+    
+    # Format dates more nicely
+    formatted_dates = [datetime.fromisoformat(date).strftime("%m-%d") for date in dates]
+    
+    # Create a bar chart
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=formatted_dates,
+        y=counts,
+        marker_color='#4B96E5',
+        text=[f"{count} items" for count in counts],
+        textposition='auto',
+    ))
+    
+    fig.update_layout(
+        title='Upcoming Review Schedule',
+        xaxis_title='Date',
+        yaxis_title='Items to Review',
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    )
+    
+    return fig
+
+def create_srs_item_types_chart(items_by_type):
+    """
+    Create a pie chart showing distribution of items by type
+    
+    Args:
+        items_by_type: Dictionary with item types as keys and counts as values
+        
+    Returns:
+        Plotly figure with item type distribution
+    """
+    if not items_by_type:
+        return None
+    
+    # Prepare data
+    types = list(items_by_type.keys())
+    counts = list(items_by_type.values())
+    
+    # Create color mapping for Japanese language learning
+    colors = {
+        'vocabulary': '#FF6B6B',  # Red for vocabulary
+        'kanji': '#4ECDC4',       # Turquoise for kanji
+        'grammar': '#FFD166',     # Yellow for grammar
+        'sentence': '#06D6A0',    # Green for sentences
+        'phrase': '#118AB2'       # Blue for phrases
+    }
+    
+    # Assign colors to each type, default to gray if type not in mapping
+    type_colors = [colors.get(t, '#CCCCCC') for t in types]
+    
+    # Create pie chart
+    fig = go.Figure(data=[go.Pie(
+        labels=types,
+        values=counts,
+        hole=.3,
+        marker_colors=type_colors
+    )])
+    
+    fig.update_layout(
+        title='Items by Type',
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    )
+    
+    return fig
+
+def create_srs_review_history_chart(daily_items):
+    """
+    Create a line chart showing review activity over time
+    
+    Args:
+        daily_items: List of dictionaries with date and count
+        
+    Returns:
+        Plotly figure with review history
+    """
+    if not daily_items:
+        return None
+    
+    # Prepare data
+    dates = [item['date'] for item in daily_items]
+    counts = [item['count'] for item in daily_items]
+    
+    # Sort by date (ascending)
+    sorted_indices = sorted(range(len(dates)), key=lambda i: dates[i])
+    sorted_dates = [dates[i] for i in sorted_indices]
+    sorted_counts = [counts[i] for i in sorted_indices]
+    
+    # Format dates more nicely
+    formatted_dates = [datetime.fromisoformat(date).strftime("%m-%d") for date in sorted_dates]
+    
+    # Create a line chart
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=formatted_dates,
+        y=sorted_counts,
+        mode='lines+markers',
+        name='Reviews',
+        line=dict(color='#4B96E5', width=3),
+        marker=dict(size=8, color='#4B96E5'),
+    ))
+    
+    # Add a smoothed trend line
+    if len(sorted_counts) > 3:
+        # Create a smoothed trend using a simple moving average
+        window_size = min(3, len(sorted_counts) - 1)
+        trend = np.convolve(sorted_counts, np.ones(window_size)/window_size, mode='valid')
+        trend_dates = formatted_dates[window_size-1:]
+        
+        fig.add_trace(go.Scatter(
+            x=trend_dates,
+            y=trend,
+            mode='lines',
+            name='Trend',
+            line=dict(color='#FF6B6B', width=2, dash='dash'),
+        ))
+    
+    fig.update_layout(
+        title='Review Activity History',
+        xaxis_title='Date',
+        yaxis_title='Items Reviewed',
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    )
+    
+    return fig
+
+def create_srs_mastery_distribution_chart(items):
+    """
+    Create a histogram showing distribution of ease factors
+    
+    Args:
+        items: List of SRS items with ease_factor values
+        
+    Returns:
+        Plotly figure with ease factor distribution
+    """
+    if not items:
+        return None
+    
+    # Extract ease factors
+    ease_factors = [item.ease_factor for item in items]
+    
+    # Create histogram
+    fig = go.Figure()
+    
+    fig.add_trace(go.Histogram(
+        x=ease_factors,
+        nbinsx=10,
+        marker_color='#4B96E5',
+        opacity=0.7
+    ))
+    
+    fig.update_layout(
+        title='Memory Strength Distribution',
+        xaxis_title='Ease Factor (Lower = More Difficult)',
+        yaxis_title='Number of Items',
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    )
+    
+    # Add vertical lines for ease factor interpretation
+    fig.add_shape(
+        type="line",
+        x0=1.3, x1=1.3, y0=0, y1=1,
+        yref="paper",
+        line=dict(color="#FF6B6B", width=2, dash="dash"),
+    )
+    
+    fig.add_shape(
+        type="line",
+        x0=2.5, x1=2.5, y0=0, y1=1,
+        yref="paper",
+        line=dict(color="#FFD166", width=2, dash="dash"),
+    )
+    
+    # Add annotations for ease factor zones
+    fig.add_annotation(
+        x=1.15,
+        y=0.9,
+        yref="paper",
+        text="Very Difficult",
+        showarrow=False,
+        font=dict(color="#FF6B6B")
+    )
+    
+    fig.add_annotation(
+        x=1.9,
+        y=0.9,
+        yref="paper",
+        text="Challenging",
+        showarrow=False,
+        font=dict(color="#FFD166")
+    )
+    
+    fig.add_annotation(
+        x=3.0,
+        y=0.9,
+        yref="paper",
+        text="Well Known",
+        showarrow=False,
+        font=dict(color="#06D6A0")
+    )
+    
+    return fig
 
 def create_next_badge_card(category, current_achievements):
     """
