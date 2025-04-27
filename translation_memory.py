@@ -263,7 +263,7 @@ class TranslationMemoryManager:
                           translation_id: int, 
                           update_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Update an existing translation
+        Update an existing translation and track revision history
         
         Args:
             translation_id: ID of the translation to update
@@ -274,6 +274,36 @@ class TranslationMemoryManager:
         """
         try:
             db = next(get_db())
+            
+            # Get the current translation before updating
+            current = db.query(TranslationMemory).filter(
+                TranslationMemory.id == translation_id,
+                TranslationMemory.session_id == self.session_id
+            ).first()
+            
+            if not current:
+                return {
+                    "success": False,
+                    "message": "Translation not found or you don't have permission to update it"
+                }
+            
+            # Prepare revision history entry
+            revision = {
+                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "source_text": current.source_text,
+                "translated_text": current.translated_text,
+                "context": current.context,
+                "notes": current.notes
+            }
+            
+            # Add revision to history
+            revision_history = current.revision_history or []
+            revision_history.append(revision)
+            
+            # Include revision history in update data
+            update_data["revision_history"] = revision_history
+            
+            # Perform the update
             translation = TranslationMemory.update_translation(
                 db, translation_id, self.session_id, update_data
             )
@@ -288,7 +318,8 @@ class TranslationMemoryManager:
                         "translated_text": translation.translated_text,
                         "document_id": translation.document_id,
                         "context_type": translation.context_type,
-                        "updated_at": translation.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                        "updated_at": translation.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+                        "revision_count": len(revision_history)
                     }
                 }
             else:
@@ -543,6 +574,231 @@ class TranslationMemoryManager:
             st.error(f"Error retrieving document translations: {str(e)}")
             return []
     
+    def get_revision_history(self, translation_id: int) -> Dict[str, Any]:
+        """
+        Get the revision history for a translation
+        
+        Args:
+            translation_id: ID of the translation
+            
+        Returns:
+            Dictionary with the revision history
+        """
+        try:
+            db = next(get_db())
+            translation = db.query(TranslationMemory).filter(
+                TranslationMemory.id == translation_id,
+                TranslationMemory.session_id == self.session_id
+            ).first()
+            
+            if not translation:
+                return {
+                    "success": False,
+                    "message": "Translation not found or you don't have permission to view it"
+                }
+            
+            revisions = translation.revision_history or []
+            
+            return {
+                "success": True,
+                "translation_id": translation_id,
+                "current": {
+                    "source_text": translation.source_text,
+                    "translated_text": translation.translated_text,
+                    "context": translation.context,
+                    "notes": translation.notes,
+                    "updated_at": translation.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                },
+                "revisions": revisions,
+                "revision_count": len(revisions)
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Failed to get revision history"
+            }
+    
+    def create_glossary_term(self, 
+                            term: str,
+                            definition: str,
+                            japanese_term: Optional[str] = None,
+                            english_term: Optional[str] = None,
+                            context_id: Optional[str] = None,
+                            context_type: Optional[str] = None,
+                            examples: Optional[List[Dict[str, str]]] = None,
+                            notes: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a new glossary term
+        
+        Args:
+            term: The term to define (can be in either language)
+            definition: Definition of the term
+            japanese_term: Japanese version of the term (if term is English)
+            english_term: English version of the term (if term is Japanese)
+            context_id: Optional document context ID
+            context_type: Optional context type
+            examples: Optional list of example usages
+            notes: Optional additional notes
+            
+        Returns:
+            Dictionary with status and the created term
+        """
+        try:
+            db = next(get_db())
+            
+            # Use active document context if available and none specified
+            if not context_id and st.session_state.active_context:
+                context_id = st.session_state.active_context.get("id")
+                
+            # If no context type provided, use the active context type
+            if not context_type and st.session_state.active_context:
+                context_type = st.session_state.active_context.get("type")
+            
+            # Create glossary data dictionary
+            glossary_data = {
+                "session_id": self.session_id,
+                "term": term,
+                "japanese_term": japanese_term,
+                "english_term": english_term,
+                "definition": definition,
+                "context_id": context_id,
+                "context_type": context_type,
+                "examples": examples or [],
+                "notes": notes
+            }
+            
+            # Save to database
+            glossary_term = ContextGlossary.create(db, glossary_data)
+            
+            return {
+                "success": True,
+                "term_id": glossary_term.id,
+                "message": "Glossary term added successfully"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Failed to add glossary term"
+            }
+    
+    def get_glossary_terms(self, context_id: Optional[str] = None, context_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get terms from the user's glossary
+        
+        Args:
+            context_id: Optional filter for specific context
+            context_type: Optional filter for context type
+            
+        Returns:
+            List of glossary terms
+        """
+        try:
+            db = next(get_db())
+            terms = ContextGlossary.get_user_glossary(
+                db, self.session_id, context_id, context_type
+            )
+            
+            # Convert SQLAlchemy objects to dictionaries
+            return [
+                {
+                    "id": t.id,
+                    "term": t.term,
+                    "japanese_term": t.japanese_term,
+                    "english_term": t.english_term,
+                    "definition": t.definition,
+                    "context_id": t.context_id,
+                    "context_type": t.context_type,
+                    "examples": t.examples,
+                    "notes": t.notes,
+                    "created_at": t.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                for t in terms
+            ]
+            
+        except Exception as e:
+            st.error(f"Error retrieving glossary terms: {str(e)}")
+            return []
+    
+    def search_glossary(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Search for terms in the user's glossary
+        
+        Args:
+            query: Search query
+            
+        Returns:
+            List of matching glossary terms
+        """
+        try:
+            db = next(get_db())
+            terms = ContextGlossary.search_glossary(
+                db, self.session_id, query
+            )
+            
+            # Convert SQLAlchemy objects to dictionaries
+            return [
+                {
+                    "id": t.id,
+                    "term": t.term,
+                    "japanese_term": t.japanese_term,
+                    "english_term": t.english_term,
+                    "definition": t.definition,
+                    "context_id": t.context_id,
+                    "context_type": t.context_type,
+                    "examples": t.examples,
+                    "notes": t.notes,
+                    "created_at": t.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                for t in terms
+            ]
+            
+        except Exception as e:
+            st.error(f"Error searching glossary: {str(e)}")
+            return []
+            
+    def update_glossary_term(self, term_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing glossary term
+        
+        Args:
+            term_id: ID of the term to update
+            update_data: Dictionary with fields to update
+            
+        Returns:
+            Dictionary with status and the updated term
+        """
+        try:
+            db = next(get_db())
+            term = ContextGlossary.update_term(
+                db, term_id, self.session_id, update_data
+            )
+            
+            if term:
+                return {
+                    "success": True,
+                    "message": "Glossary term updated successfully",
+                    "term": {
+                        "id": term.id,
+                        "term": term.term,
+                        "definition": term.definition,
+                        "updated_at": term.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "Term not found or you don't have permission to update it"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Failed to update glossary term"
+            }
+    
     def get_translation_statistics(self) -> Dict[str, Any]:
         """
         Get statistics about the user's translation history
@@ -562,19 +818,45 @@ class TranslationMemoryManager:
                 return {
                     "total_count": 0,
                     "language_pairs": {},
-                    "recent_activity": []
+                    "recent_activity": [],
+                    "revision_counts": {},
+                    "approved_count": 0
                 }
             
             # Count by language pair
             language_pairs = {}
+            # Count revisions
+            revision_counts = {}
+            # Count approved translations
+            approved_count = 0
+            # Count by context type
+            context_types = {}
+            
             for t in translations:
+                # Language pairs
                 pair = f"{t.source_language}→{t.target_language}"
                 if pair not in language_pairs:
                     language_pairs[pair] = 0
                 language_pairs[pair] += 1
+                
+                # Context types
+                if t.context_type:
+                    if t.context_type not in context_types:
+                        context_types[t.context_type] = 0
+                    context_types[t.context_type] += 1
+                
+                # Count revisions
+                revision_count = len(t.revision_history or [])
+                revision_key = f"{revision_count} revision{'s' if revision_count != 1 else ''}"
+                if revision_key not in revision_counts:
+                    revision_counts[revision_key] = 0
+                revision_counts[revision_key] += 1
+                
+                # Count approved translations
+                if getattr(t, 'approved', False):
+                    approved_count += 1
             
             # Get recent activity (last 7 days)
-            from datetime import timedelta
             one_week_ago = datetime.utcnow() - timedelta(days=7)
             recent_activity = db.query(TranslationMemory).filter(
                 TranslationMemory.session_id == self.session_id,
@@ -598,7 +880,10 @@ class TranslationMemoryManager:
             return {
                 "total_count": len(translations),
                 "language_pairs": language_pairs,
-                "recent_activity": recent_activity_list
+                "recent_activity": recent_activity_list,
+                "revision_counts": revision_counts,
+                "approved_count": approved_count,
+                "context_types": context_types
             }
             
         except Exception as e:
@@ -625,6 +910,8 @@ def render_translation_memory_ui():
         "Translation History", 
         "Search Memory", 
         "Document Contexts",
+        "Context Glossary",
+        "Revision History",
         "Statistics"
     ])
     
@@ -1108,8 +1395,255 @@ def render_translation_memory_ui():
                                         **Date:** {t['created_at']}
                                         """)
     
-    # Statistics tab
+    # Context Glossary tab
     with tabs[4]:
+        st.header("📝 Context-Aware Glossary")
+        st.markdown("""
+        This glossary allows you to maintain consistent terminology across your translations.
+        Terms are organized by context, making it easy to find the right translations for specific domains.
+        """)
+        
+        # Create a new term
+        with st.expander("➕ Add New Glossary Term", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                term = st.text_input("Term:", placeholder="Enter a term to define")
+                japanese_term = st.text_input("Japanese Version:", placeholder="Japanese equivalent (optional)")
+            
+            with col2:
+                english_term = st.text_input("English Version:", placeholder="English equivalent (optional)")
+                context_type = st.selectbox(
+                    "Context Type:",
+                    [
+                        "", "business", "casual", "technical", "academic", 
+                        "entertainment", "literary", "medical", "legal", "other"
+                    ],
+                    key="glossary_context_type"
+                )
+            
+            definition = st.text_area(
+                "Definition:",
+                placeholder="Enter a clear definition of this term",
+                height=100
+            )
+            
+            notes = st.text_area(
+                "Additional Notes:",
+                placeholder="Additional information, usage notes, etc. (optional)",
+                height=80
+            )
+            
+            # Example usage
+            example_cols = st.columns(2)
+            with example_cols[0]:
+                example_ja = st.text_input("Example (Japanese):", placeholder="Japanese example sentence")
+            
+            with example_cols[1]:
+                example_en = st.text_input("Example (English):", placeholder="English example sentence")
+            
+            if st.button("Add Term to Glossary"):
+                if term and definition:
+                    # Prepare examples if provided
+                    examples = []
+                    if example_ja and example_en:
+                        examples.append({
+                            "japanese": example_ja,
+                            "english": example_en
+                        })
+                    
+                    # Get context ID from active context if available
+                    context_id = None if not st.session_state.active_context else st.session_state.active_context.get("id")
+                    
+                    result = manager.create_glossary_term(
+                        term=term,
+                        definition=definition,
+                        japanese_term=japanese_term,
+                        english_term=english_term,
+                        context_id=context_id,
+                        context_type=context_type,
+                        examples=examples,
+                        notes=notes
+                    )
+                    
+                    if result["success"]:
+                        st.success("Term added successfully!")
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to add term: {result.get('message')}")
+                else:
+                    st.warning("Please provide at least a term and definition.")
+        
+        # Browse and search glossary
+        st.subheader("Glossary Browser")
+        
+        # Context filter
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            filter_type = st.selectbox(
+                "Filter by context:",
+                ["All"] + sorted(["business", "casual", "technical", "academic", 
+                                  "entertainment", "literary", "medical", "legal", "other"]),
+                key="glossary_filter_type"
+            )
+        
+        with col2:
+            search_query = st.text_input(
+                "Search glossary:",
+                placeholder="Enter term to search",
+                key="glossary_search"
+            )
+        
+        # Get glossary terms with appropriate filtering
+        if search_query:
+            terms = manager.search_glossary(search_query)
+        else:
+            # Get by context type
+            if filter_type != "All":
+                terms = manager.get_glossary_terms(context_type=filter_type)
+            else:
+                terms = manager.get_glossary_terms()
+                
+        if not terms:
+            st.info("No glossary terms found. Add some terms to build your context-aware glossary.")
+        else:
+            st.success(f"Found {len(terms)} terms in the glossary")
+            
+            # Display terms in a nice format
+            for term in terms:
+                with st.expander(f"{term['term']} {'(' + term.get('japanese_term', '') + ')' if term.get('japanese_term') else ''}", expanded=False):
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Definition:** {term['definition']}")
+                        
+                        if term.get('japanese_term') and term.get('english_term'):
+                            st.markdown(f"**Japanese:** {term['japanese_term']} | **English:** {term['english_term']}")
+                        elif term.get('japanese_term'):
+                            st.markdown(f"**Japanese:** {term['japanese_term']}")
+                        elif term.get('english_term'):
+                            st.markdown(f"**English:** {term['english_term']}")
+                        
+                        if term.get('examples') and len(term['examples']) > 0:
+                            st.markdown("**Examples:**")
+                            for ex in term['examples']:
+                                st.markdown(f"- 🇯🇵 {ex.get('japanese', '')}")
+                                st.markdown(f"- 🇬🇧 {ex.get('english', '')}")
+                        
+                        if term.get('notes'):
+                            st.markdown(f"**Notes:** {term['notes']}")
+                    
+                    with col2:
+                        if term.get('context_type'):
+                            st.markdown(f"**Context:** {term['context_type']}")
+                        
+                        st.markdown(f"**Added:** {term['created_at']}")
+                        
+                        # Edit button
+                        if st.button("Edit", key=f"edit_term_{term['id']}"):
+                            st.session_state.edit_term_id = term['id']
+                            st.rerun()
+                
+                # Edit form
+                if 'edit_term_id' in st.session_state and st.session_state.edit_term_id == term['id']:
+                    with st.form(f"edit_term_form_{term['id']}"):
+                        st.subheader("Edit Term")
+                        
+                        updated_definition = st.text_area("Definition", value=term['definition'], height=100)
+                        updated_notes = st.text_area("Notes", value=term.get('notes', ''), height=80)
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            updated_ja_term = st.text_input("Japanese Term", value=term.get('japanese_term', ''))
+                        with col2:
+                            updated_en_term = st.text_input("English Term", value=term.get('english_term', ''))
+                        
+                        submit = st.form_submit_button("Save Changes")
+                        
+                        if submit:
+                            update_data = {
+                                "definition": updated_definition,
+                                "notes": updated_notes,
+                                "japanese_term": updated_ja_term,
+                                "english_term": updated_en_term
+                            }
+                            
+                            result = manager.update_glossary_term(term['id'], update_data)
+                            
+                            if result["success"]:
+                                st.success("Term updated successfully!")
+                                del st.session_state.edit_term_id
+                                st.rerun()
+                            else:
+                                st.error(f"Failed to update term: {result.get('message')}")
+    
+    # Revision History tab
+    with tabs[5]:
+        st.header("📜 Translation Revision History")
+        st.markdown("""
+        This feature tracks changes to your translations over time, helping you maintain a history
+        of revisions and improvements.
+        """)
+        
+        # Select a translation to view its history
+        translation_id = st.selectbox(
+            "Select a translation:",
+            options=[("", "Select a translation...")] + [
+                (t['id'], f"{t['source_text'][:30]}... → {t['translated_text'][:30]}...")
+                for t in manager.get_translation_history(limit=50)
+            ],
+            format_func=lambda x: x[1] if isinstance(x, tuple) else x,
+            key="revision_translation_select"
+        )
+        
+        if translation_id and translation_id[0]:
+            # Get revision history
+            history = manager.get_revision_history(translation_id[0])
+            
+            if history.get("success", False):
+                # Show current version
+                st.subheader("Current Version")
+                st.markdown(f"""
+                **Source Text:** {history['current']['source_text']}
+                
+                **Translation:** {history['current']['translated_text']}
+                
+                **Last Updated:** {history['current']['updated_at']}
+                """)
+                
+                # Show revision history
+                if history['revisions']:
+                    st.subheader(f"Revision History ({history['revision_count']} revisions)")
+                    
+                    for i, revision in enumerate(reversed(history['revisions'])):
+                        with st.expander(f"Revision {history['revision_count'] - i} - {revision['timestamp']}", expanded=False):
+                            st.markdown(f"**Original Text:** {revision['source_text']}")
+                            st.markdown(f"**Translation:** {revision['translated_text']}")
+                            
+                            if revision.get('context'):
+                                st.markdown(f"**Context:** {revision['context']}")
+                            
+                            if revision.get('notes'):
+                                st.markdown(f"**Notes:** {revision['notes']}")
+                                
+                            # Add diff visualization if this isn't the last revision
+                            if i < len(history['revisions']) - 1:
+                                st.markdown("**Changes from previous version:**")
+                                
+                                # Simple diff highlighting (in a real app, you'd use a proper diff library)
+                                next_revision = history['revisions'][-(i+2)] if i < len(history['revisions'])-1 else history['current']
+                                if revision['translated_text'] != next_revision.get('translated_text', ''):
+                                    st.markdown("_Translation was updated_")
+                else:
+                    st.info("This translation has no revision history yet.")
+            else:
+                st.error(f"Failed to get revision history: {history.get('message')}")
+        else:
+            st.info("Select a translation to view its revision history.")
+    
+    # Statistics tab
+    with tabs[6]:
         st.header("📊 Translation Statistics")
         
         stats = manager.get_translation_statistics()
@@ -1175,6 +1709,54 @@ def render_translation_memory_ui():
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No recent activity data.")
+            
+            # Add a section for revisions and approvals
+            if "revision_counts" in stats and stats["revision_counts"]:
+                st.markdown("---")
+                st.subheader("Revision Statistics")
+                
+                # Create a pie chart for revision counts
+                revision_data = pd.DataFrame({
+                    "Revision Count": list(stats["revision_counts"].keys()),
+                    "Number of Translations": list(stats["revision_counts"].values())
+                })
+                
+                rev_fig = px.pie(
+                    revision_data,
+                    values="Number of Translations",
+                    names="Revision Count",
+                    title="Distribution of Translation Revisions",
+                    hole=0.4
+                )
+                st.plotly_chart(rev_fig, use_container_width=True)
+                
+                # Add a metric for approved translations
+                if "approved_count" in stats and stats["total_count"] > 0:
+                    approval_percentage = round((stats["approved_count"] / stats["total_count"]) * 100, 1)
+                    st.metric(
+                        "Approved Translations",
+                        f"{stats['approved_count']} ({approval_percentage}%)",
+                        help="Translations that have been marked as approved/verified"
+                    )
+            
+            # Add context type distribution if available
+            if "context_types" in stats and stats["context_types"]:
+                st.markdown("---")
+                st.subheader("Translations by Context")
+                
+                context_data = pd.DataFrame({
+                    "Context Type": list(stats["context_types"].keys()),
+                    "Count": list(stats["context_types"].values())
+                })
+                
+                context_fig = px.bar(
+                    context_data,
+                    x="Context Type",
+                    y="Count",
+                    color="Context Type",
+                    title="Translations by Context Type"
+                )
+                st.plotly_chart(context_fig, use_container_width=True)
                     
             # Add a section for translation memory effectiveness
             st.markdown("---")
@@ -1182,6 +1764,11 @@ def render_translation_memory_ui():
             st.markdown("""
             The more you translate, the more effective your memory bank becomes.
             Consistent translations of similar phrases helps build a reliable memory bank.
+            
+            **New Features:**
+            - **Revision History:** Track changes to your translations over time
+            - **Context Glossary:** Maintain consistent terminology across translations
+            - **Semantic Clustering:** Group similar translations for better search results
             """)
             
             # Placeholder for future effectiveness metrics

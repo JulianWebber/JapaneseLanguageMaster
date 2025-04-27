@@ -1,4 +1,7 @@
 import streamlit as st
+# Must set page config first before any other st commands
+st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
+
 import json
 from grammar_checker import GrammarChecker
 from gpt_grammar_checker import GPTGrammarChecker
@@ -27,7 +30,6 @@ from spaced_repetition import render_spaced_repetition_ui
 from sentence_generator import render_sentence_generator_ui
 
 # Initialize the application
-st.set_page_config(page_title="Japanese Grammar Checker", layout="wide")
 
 # Add custom CSS for animations and elaborate fonts
 st.markdown("""
