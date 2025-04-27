@@ -353,6 +353,9 @@ class TranslationMemory(Base):
     notes = Column(Text, nullable=True)  # Optional user notes about the translation
     document_id = Column(String(100), nullable=True)  # For grouping translations by document/conversation
     context_type = Column(String(50), nullable=True)  # Type of context (business, casual, technical, etc.)
+    revision_history = Column(JSON, default=list)  # For tracking changes to the translation over time
+    semantic_cluster_id = Column(Integer, nullable=True)  # For semantic clustering of similar translations
+    approved = Column(Boolean, default=False)  # For marking translations as approved/verified
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -525,6 +528,129 @@ class TranslationMemory(Base):
             db.refresh(translation)
         
         return translation
+
+class ContextGlossary(Base):
+    __tablename__ = "context_glossaries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), ForeignKey('user_progress.session_id'), nullable=False)
+    term = Column(String(255), nullable=False)
+    japanese_term = Column(String(255), nullable=True)
+    english_term = Column(String(255), nullable=True)
+    definition = Column(Text, nullable=False)
+    context_id = Column(String(100), nullable=True)  # Link to document context
+    context_type = Column(String(50), nullable=True)  # Type of context
+    examples = Column(JSON, default=list)  # Example usages
+    notes = Column(Text, nullable=True)  # Additional notes
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    @classmethod
+    def create(cls, db, glossary_data):
+        """
+        Create a new glossary entry
+        
+        Args:
+            db: Database session
+            glossary_data: Dictionary with glossary term details
+            
+        Returns:
+            The newly created ContextGlossary object
+        """
+        new_term = cls(
+            session_id=glossary_data.get("session_id"),
+            term=glossary_data.get("term"),
+            japanese_term=glossary_data.get("japanese_term"),
+            english_term=glossary_data.get("english_term"),
+            definition=glossary_data.get("definition"),
+            context_id=glossary_data.get("context_id"),
+            context_type=glossary_data.get("context_type"),
+            examples=glossary_data.get("examples", []),
+            notes=glossary_data.get("notes")
+        )
+        db.add(new_term)
+        db.commit()
+        db.refresh(new_term)
+        return new_term
+    
+    @classmethod
+    def get_user_glossary(cls, db, session_id, context_id=None, context_type=None):
+        """
+        Get terms from a user's context glossary
+        
+        Args:
+            db: Database session
+            session_id: User's session ID
+            context_id: Optional filter for specific context
+            context_type: Optional filter for context type
+            
+        Returns:
+            List of ContextGlossary objects
+        """
+        filters = [cls.session_id == session_id]
+        
+        if context_id:
+            filters.append(cls.context_id == context_id)
+        
+        if context_type:
+            filters.append(cls.context_type == context_type)
+        
+        return db.query(cls).filter(*filters).order_by(cls.term).all()
+    
+    @classmethod
+    def search_glossary(cls, db, session_id, query):
+        """
+        Search for terms in a user's glossary
+        
+        Args:
+            db: Database session
+            session_id: User's session ID
+            query: Search query
+            
+        Returns:
+            List of matching ContextGlossary objects
+        """
+        return db.query(cls).filter(
+            cls.session_id == session_id,
+            or_(
+                cls.term.ilike(f"%{query}%"),
+                cls.japanese_term.ilike(f"%{query}%"),
+                cls.english_term.ilike(f"%{query}%"),
+                cls.definition.ilike(f"%{query}%"),
+                cls.notes.ilike(f"%{query}%")
+            )
+        ).order_by(cls.term).all()
+    
+    @classmethod
+    def update_term(cls, db, term_id, session_id, update_data):
+        """
+        Update an existing glossary term
+        
+        Args:
+            db: Database session
+            term_id: ID of the term to update
+            session_id: User's session ID (for verification)
+            update_data: Dictionary with fields to update
+            
+        Returns:
+            Updated ContextGlossary object or None if not found
+        """
+        term = db.query(cls).filter(
+            cls.id == term_id,
+            cls.session_id == session_id
+        ).first()
+        
+        if term:
+            # Update fields
+            for key, value in update_data.items():
+                if hasattr(term, key):
+                    setattr(term, key, value)
+            
+            term.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(term)
+        
+        return term
 
 # Create all tables
 Base.metadata.create_all(bind=engine)

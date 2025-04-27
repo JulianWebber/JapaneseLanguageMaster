@@ -2,17 +2,22 @@
 Contextual Translation Memory Bank
 
 This module provides functionality for storing, retrieving, and managing
-a user's translation history with context awareness.
+a user's translation history with context awareness, semantic clustering,
+revision history tracking, and context-aware glossary features.
 """
 
 import streamlit as st
 import uuid
 import pandas as pd
 import plotly.express as px
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime
+import plotly.graph_objects as go
+from typing import Dict, List, Optional, Tuple, Any, Set
+from datetime import datetime, timedelta
+import json
+import re
+from collections import Counter, defaultdict
 
-from database import TranslationMemory, get_db
+from database import TranslationMemory, ContextGlossary, get_db
 from gpt_client import OpenAIClient
 
 class TranslationMemoryManager:
